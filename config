@@ -1,0 +1,16 @@
+# File with modeling data (50 symb for each line)
+#================== FDA NUMBER ==================
+FDA_number: 1
+
+#============= MESH CHARACTERISTICS =============
+Domain partition fineness: 10
+Time partition fineness: 500
+
+#============ DOMAIN CHARACTERISTICS ============
+xLen: 1.0
+yLen: 1.0
+zLen: 1.0
+duration: 1.0
+
+#============= FLOW CHARACTERISTICS =============
+Reynold's number:  100

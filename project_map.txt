@@ -1,0 +1,22 @@
+pde_generator/ 
+│ 
+├── ast_nodes.py # классы Expr, Var, Add, Mul, Derivative ... 
+├── parser.py # build_ast, parse_expr 
+├── symbolic.py # diff(), правила дифференцирования 
+├── discretizer.py # превращение Derivative → разностные схемы 
+├── codegen.py # генерация C++ 
+└── main.py # сборка пайплайна
+
+INPUT DSL
+   ↓
+AST
+   ↓
+Symbolic differentiation (diff)
+   ↓
+Symbolic tree with Derivative nodes
+   ↓
+Discretization pass
+   ↓
+Pure algebraic tree
+   ↓
+C++ generation
