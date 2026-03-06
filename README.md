@@ -1,6 +1,6 @@
 ## General info
 
-This is a study pet-project, PDE-generator, which builds C++ code from a Navier-Stocks PDE, described inside a file. The aim of this project is to help simply transfer PDE to code and check their performance on ABC-flow. The domain is a simple cube.
+This is a study pet-project, PDE-generator, which builds C++ code from a Navier-Stocks PDE, described inside a file. The aim of this project is to help simply transfer PDE to code and check its performance (residual) on ABC-flow solution. The domain is a simple cube.
 
 ## Python files
 
