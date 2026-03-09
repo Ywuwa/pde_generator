@@ -210,8 +210,12 @@ def handle_time_equation(line: str, constant_names: set):
     rhs_cpp = discretize(rhs_expr, constant_names)
 
     update_code = f"{var}1[index] = {var}[index] + tau*({rhs_cpp});"
+    residual_code = f"""
+    resTerm = {var}1[index] - ( {var}[index] + tau*({rhs_cpp}) );
+    vectorResidual += resTerm*resTerm;
+    """
 
-    return update_code, sorted(varset)
+    return update_code, sorted(varset), residual_code
 
 
 
@@ -223,11 +227,13 @@ def generate_src_n_header(constants: list, equations: list, implicit_eq: list):
     constant_names = {n for n, _ in constants}
     signature_args = []
     time_eq_input_args = []
+    res_input_args = []
     
     time_eq_code = []
+    residual_code = []
     
     for equation in equations:
-      code, variables = handle_time_equation(
+      code, variables, vel_res_code = handle_time_equation(
           equation,
           constant_names
       )
@@ -237,8 +243,11 @@ def generate_src_n_header(constants: list, equations: list, implicit_eq: list):
           signature_args.append(f"std::vector<double>& {v}1")
           time_eq_input_args.append(f"{v}")
           time_eq_input_args.append(f"{v}1")
+          res_input_args.append(f"{v}Exac")
+          res_input_args.append(f"{v}")
       
       time_eq_code.append(code)
+      residual_code.append(vel_res_code)
       
     impl_signature_args = []
     impl_eq_input_args = []
@@ -280,9 +289,12 @@ def generate_src_n_header(constants: list, equations: list, implicit_eq: list):
                                 "hX", "hY", "hZ", "tau", "dimSize"])
     impl_eq_input_args.extend(["offsetX", "offsetY", "offsetZ", 
                                 "hX", "hY", "hZ", "tau", "dimSize"])
+    res_input_args.extend(["offsetX", "offsetY", "offsetZ", 
+                                "hX", "hY", "hZ", "tau", "dimSize"])
 
     signature = ",\n               ".join(signature_args)
     time_eq_input = ", ".join(time_eq_input_args)    
+    residual_input = ", ".join(res_input_args)    
     impl_signature = ",\n               ".join(impl_signature_args)
     impl_eq_input = ", ".join(impl_eq_input_args) 
     
@@ -291,7 +303,11 @@ def generate_src_n_header(constants: list, equations: list, implicit_eq: list):
     head_code = "\n    ".join(head_lines)
     time_equations_code = "\n    ".join(time_eq_code)
     impl_equations_code = "\n    ".join(impl_eq_code)
-    compute_flow_cpp_code = generate_compute_flow_cpp(time_eq_input, impl_eq_input)
+    velocity_residual_code = "\n    ".join(residual_code)
+    velocity_residual_cpp = generate_velocity_residual_cpp(signature, head_code, 
+                                                           velocity_residual_code)
+    compute_flow_cpp_code = generate_compute_flow_cpp(
+      time_eq_input, impl_eq_input, residual_input, velocity_residual_cpp)
 
     return f"""
 #include "../headers/generated.hpp"
@@ -332,9 +348,41 @@ void generated_impl_eq({impl_signature})
 #include "settings.hpp"
 void generated_time_eq({signature});
 void generated_impl_eq({impl_signature});
-"""
+""", compute_flow_cpp_code
 
-def generate_compute_flow_cpp(time_eq_input: str, impl_eq_input: str):
+
+def generate_velocity_residual_cpp(signature, head_code, velocity_residual_code):
+  return f"""
+/*
+<var>   - exact value at knot
+<var>1  - estimated solution at knot
+*/
+double velocity_residual({signature})
+{{
+  {head_code}
+  double vectorResidual (0.0);
+  //---------------------------- inner knots --------------------------------
+  for (size_t k = 1; k < dimSize; k++)      // Z-Axis
+  {{
+    for (size_t j = 1; j < dimSize; j++)    // Y-Axis
+    {{
+      for (size_t i = 1; i < dimSize; i++)  // X-Axis
+      {{
+        uint index (k*offsetZ + j*offsetY + i);
+        double resTerm (0.0); // residual term
+        //! Insert precise values to the scheme, take the difference with the estimated values
+        {velocity_residual_code}
+      }}
+    }}
+  }}
+  //-------------------------------------------------------------------------
+  return std::sqrt(vectorResidual);
+}}
+"""
+  
+
+def generate_compute_flow_cpp(
+    time_eq_input: str, impl_eq_input: str, residual_input: str, velocity_residual_cpp: str):
   return f""" 
 #include "../headers/inout.hpp"
 #include "../headers/mesh_n_model.hpp"
@@ -343,14 +391,14 @@ def generate_compute_flow_cpp(time_eq_input: str, impl_eq_input: str):
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 
-//============================== FLOW COMPUTATION via FDA1/FDA3 ===================================
+//======================================= FLOW COMPUTATION ========================================
 void compute_cube(
   const model_data& params, 
   std::vector<double>& u, std::vector<double>& v, std::vector<double>& w, std::vector<double>& p0)
 {{
   uint tick = 1; // number of time step
   const auto dimSize ( params.domainPartition );  // 1-dimension size
-  const double offsetX = 1;
+  const uint offsetX = 1;
   const uint offsetY = dimSize + 1;               // j+1 component (i+1 component is just [index+1])
   const uint offsetZ = (dimSize+1) * (dimSize+1); // k+1 component
 
@@ -525,44 +573,44 @@ void compute_cube(
     //------------------------- cube vertices ---------------------------------
     // X = Y = Z = 0
     uint index (0);
-    u1[index] = uExac[index];//u1[index + 1] + (uExac[index] - uExac[index + 1]);
-    v1[index] = vExac[index];//v1[index + offsetY] + (vExac[index] - vExac[index + offsetY]);
-    w1[index] = wExac[index];//w1[index + offsetZ] + (wExac[index] - wExac[index + offsetZ]);
+    u1[index] = uExac[index];
+    v1[index] = vExac[index];
+    w1[index] = wExac[index];
     // X = MAX, Y = Z = 0
     index = dimSize;
-    u1[index] = uExac[index];//u1[index - 1] + (uExac[index] - uExac[index - 1]);
-    v1[index] = vExac[index];//v1[index + offsetY] + (vExac[index] - vExac[index + offsetY]);
-    w1[index] = wExac[index];//w1[index + offsetZ] + (wExac[index] - wExac[index + offsetZ]);
+    u1[index] = uExac[index];
+    v1[index] = vExac[index];
+    w1[index] = wExac[index];
     // X = Z = 0, Y = MAX
     index = dimSize*offsetY;
-    u1[index] = uExac[index];//u1[index + 1] + (uExac[index] - uExac[index + 1]);
-    v1[index] = vExac[index];//v1[index - offsetY] + (vExac[index] - vExac[index - offsetY]);
-    w1[index] = wExac[index];//w1[index + offsetZ] + (wExac[index] - wExac[index + offsetZ]);
+    u1[index] = uExac[index];
+    v1[index] = vExac[index];
+    w1[index] = wExac[index];
     // X = Y = 0, Z = MAX
     index = dimSize*offsetZ;
-    u1[index] = uExac[index];//u1[index + 1] + (uExac[index] - uExac[index + 1]);
-    v1[index] = vExac[index];//v1[index + offsetY] + (vExac[index] - vExac[index + offsetY]);
-    w1[index] = wExac[index];//w1[index - offsetZ] + (wExac[index] - wExac[index - offsetZ]);
+    u1[index] = uExac[index];
+    v1[index] = vExac[index];
+    w1[index] = wExac[index];
     // X = Y = MAX, Z = 0
     index = dimSize*offsetY + dimSize;
-    u1[index] = uExac[index];//u1[index - 1] + (uExac[index] - uExac[index - 1]);
-    v1[index] = vExac[index];//v1[index - offsetY] + (vExac[index] - vExac[index - offsetY]);
-    w1[index] = wExac[index];//w1[index + offsetZ] + (wExac[index] - wExac[index + offsetZ]);
+    u1[index] = uExac[index];
+    v1[index] = vExac[index];
+    w1[index] = wExac[index];
     // X = Z = MAX, Y = 0
     index = dimSize*offsetZ + dimSize;
-    u1[index] = uExac[index];//u1[index - 1] + (uExac[index] - uExac[index - 1]);
-    v1[index] = vExac[index];//v1[index + offsetY] + (vExac[index] - vExac[index + offsetY]);
-    w1[index] = wExac[index];//w1[index - offsetZ] + (wExac[index] - wExac[index - offsetZ]);
+    u1[index] = uExac[index];
+    v1[index] = vExac[index];
+    w1[index] = wExac[index];
     // Y = Z = MAX, X = 0
     index = dimSize*offsetZ + dimSize*offsetY;
-    u1[index] = uExac[index];//u1[index + 1] + (uExac[index] - uExac[index + 1]);
-    v1[index] = vExac[index];//v1[index - offsetY] + (vExac[index] - vExac[index - offsetY]);
-    w1[index] = wExac[index];//w1[index - offsetZ] + (wExac[index] - wExac[index - offsetZ]);
+    u1[index] = uExac[index];
+    v1[index] = vExac[index];
+    w1[index] = wExac[index];
     // X = Y = Z = MAX
     index = dimSize*offsetZ + dimSize*offsetY + dimSize;
-    u1[index] = uExac[index];//u1[index - 1] + (uExac[index] - uExac[index - 1]);
-    v1[index] = vExac[index];//v1[index - offsetY] + (vExac[index] - vExac[index - offsetY]);
-    w1[index] = wExac[index];//w1[index - offsetZ] + (wExac[index] - wExac[index - offsetZ]);
+    u1[index] = uExac[index];
+    v1[index] = vExac[index];
+    w1[index] = wExac[index];
 
     //-------------------------------------------------------------------------
     // move data from upper time layer
@@ -578,8 +626,8 @@ void compute_cube(
 
     //! initialization of equation entities (Ax = b)
     Eigen::SparseMatrix<double> A(vecSize, vecSize);
-    Eigen::VectorXd B(vecSize);
-    std::vector<Eigen::Triplet<double>> triplets; // entities for filling a sparse matrix
+    Eigen::VectorXd B0(vecSize);
+    std::vector<Eigen::Triplet<double>> triplets0; // entities for filling a sparse matrix
 
     //! pressure compute
     //---------------------------- inner knots --------------------------------
@@ -598,14 +646,14 @@ void compute_cube(
         uint index4 ((dimSize-1)*offsetZ + j*offsetY + i);
         // matrix construct via EIGEN triplets 
         // behind low border
-        triplets.emplace_back(index3,index3, 1.0);
+        triplets0.emplace_back(index3,index3, 1.0);
         // low border
-        triplets.emplace_back(index1,index1, 1.0);
+        triplets0.emplace_back(index1,index1, 1.0);
         // behind up border
-        triplets.emplace_back(index4,index4, 1.0);
+        triplets0.emplace_back(index4,index4, 1.0);
         // up border
-        triplets.emplace_back(index2,index2, 1.0);
-        B[index1] = pExac[index1]; B[index2] = pExac[index2]; B[index3] = pExac[index3]; B[index4] = pExac[index4];
+        triplets0.emplace_back(index2,index2, 1.0);
+        B0[index1] = pExac[index1]; B0[index2] = pExac[index2]; B0[index3] = pExac[index3]; B0[index4] = pExac[index4];
       }}
     }}
     //! XZ-plane Y = 0,1 / Y = MAX-1,MAX; Neiman's condition dp/dy = 0
@@ -619,14 +667,14 @@ void compute_cube(
         uint index4 (k*offsetZ + (dimSize-1)*offsetY + i);
         // matrix construct via EIGEN triplets 
         // behind Y0 border
-        triplets.emplace_back(index3,index3, 1.0);
+        triplets0.emplace_back(index3,index3, 1.0);
         // low border
-        triplets.emplace_back(index1,index1, 1.0);
+        triplets0.emplace_back(index1,index1, 1.0);
         // behind up border
-        triplets.emplace_back(index4,index4, 1.0);
+        triplets0.emplace_back(index4,index4, 1.0);
         // up border
-        triplets.emplace_back(index2,index2, 1.0);
-        B[index1] = pExac[index1]; B[index2] = pExac[index2]; B[index3] = pExac[index3]; B[index4] = pExac[index4];
+        triplets0.emplace_back(index2,index2, 1.0);
+        B0[index1] = pExac[index1]; B0[index2] = pExac[index2]; B0[index3] = pExac[index3]; B0[index4] = pExac[index4];
       }}
     }}
     
@@ -641,14 +689,14 @@ void compute_cube(
         uint index4 (k*offsetZ + j*offsetY + dimSize-1);
         // matrix construct via EIGEN triplets (flow out)
         // behind X0 border
-        triplets.emplace_back(index3,index3, 1.0);
+        triplets0.emplace_back(index3,index3, 1.0);
         // low border
-        triplets.emplace_back(index1,index1, 1.0);
+        triplets0.emplace_back(index1,index1, 1.0);
         // behind up border
-        triplets.emplace_back(index4,index4, 1.0);
+        triplets0.emplace_back(index4,index4, 1.0);
         // up border
-        triplets.emplace_back(index2,index2, 1.0);
-        B[index1] = pExac[index1]; B[index2] = pExac[index2]; B[index3] = pExac[index3]; B[index4] = pExac[index4];
+        triplets0.emplace_back(index2,index2, 1.0);
+        B0[index1] = pExac[index1]; B0[index2] = pExac[index2]; B0[index3] = pExac[index3]; B0[index4] = pExac[index4];
       }}
     }}
     //-------------------------------------------------------------------------
@@ -659,168 +707,168 @@ void compute_cube(
     {{
       // Y = Z = 0
       uint index1 (i);
-      triplets.emplace_back(index1,index1, 1.0);
+      triplets0.emplace_back(index1,index1, 1.0);
       // Y = MAX, Z = 0
       uint index2 (dimSize*offsetY + i);
-      triplets.emplace_back(index2,index2, 1.0);
+      triplets0.emplace_back(index2,index2, 1.0);
       // Y = 0, Z = MAX
       uint index3 (dimSize*offsetZ + i);
-      triplets.emplace_back(index3,index3, 1.0);
+      triplets0.emplace_back(index3,index3, 1.0);
       // Y = MAX, Z = MAX
       uint index4 (dimSize*offsetZ + dimSize*offsetY + i);
-      triplets.emplace_back(index4,index4, 1.0);
+      triplets0.emplace_back(index4,index4, 1.0);
 
-      B[index1] = pExac[index1]; B[index2] = pExac[index2]; B[index3] = pExac[index3]; B[index4] = pExac[index4];
+      B0[index1] = pExac[index1]; B0[index2] = pExac[index2]; B0[index3] = pExac[index3]; B0[index4] = pExac[index4];
 
       // Y = Z = 1
       index1 = offsetZ + offsetY + i;
-      triplets.emplace_back(index1,index1, 1.0);
+      triplets0.emplace_back(index1,index1, 1.0);
       // Y = MAX-1, Z = 1
       index2 = (dimSize-1)*offsetY + offsetZ + i;
-      triplets.emplace_back(index2,index2, 1.0);
+      triplets0.emplace_back(index2,index2, 1.0);
       // Y = 1, Z = MAX-1
       index3 = (dimSize-1)*offsetZ + offsetY + i;
-      triplets.emplace_back(index3,index3, 1.0);
+      triplets0.emplace_back(index3,index3, 1.0);
       // Y = MAX-1, Z = MAX-1
       index4 = (dimSize-1)*offsetZ + (dimSize-1)*offsetY + i;
-      triplets.emplace_back(index4,index4, 1.0);
+      triplets0.emplace_back(index4,index4, 1.0);
       
-      B[index1] = pExac[index1]; B[index2] = pExac[index2]; B[index3] = pExac[index3]; B[index4] = pExac[index4];
+      B0[index1] = pExac[index1]; B0[index2] = pExac[index2]; B0[index3] = pExac[index3]; B0[index4] = pExac[index4];
     }}
     //! X = Z = (0 || MAX); du/dx = 0, dw/dz = 0
     for (size_t j = 2; j < dimSize-1; j++)
     {{
       // X = Z = 0
       uint index1 (j*offsetY);
-      triplets.emplace_back(index1,index1, 1.0);
+      triplets0.emplace_back(index1,index1, 1.0);
       // X = MAX, Z = 0
       uint index2 (j*offsetY + dimSize);
-      triplets.emplace_back(index2,index2, 1.0);
+      triplets0.emplace_back(index2,index2, 1.0);
       // X = 0, Z = MAX
       uint index3 (dimSize*offsetZ + j*offsetY);
-      triplets.emplace_back(index3,index3, 1.0);
+      triplets0.emplace_back(index3,index3, 1.0);
       // X = MAX, Z = MAX
       uint index4 (dimSize*offsetZ + j*offsetY + dimSize);
-      triplets.emplace_back(index4,index4, 1.0);
+      triplets0.emplace_back(index4,index4, 1.0);
       
-      B[index1] = pExac[index1]; B[index2] = pExac[index2]; B[index3] = pExac[index3]; B[index4] = pExac[index4];
+      B0[index1] = pExac[index1]; B0[index2] = pExac[index2]; B0[index3] = pExac[index3]; B0[index4] = pExac[index4];
 
       // X = Z = 1
       index1 = offsetZ + j*offsetY + 1;
-      triplets.emplace_back(index1,index1, 1.0);
+      triplets0.emplace_back(index1,index1, 1.0);
       // X = MAX-1, Z = 1
       index2 = offsetZ + j*offsetY + dimSize-1;
-      triplets.emplace_back(index2,index2, 1.0);
+      triplets0.emplace_back(index2,index2, 1.0);
       // X = 1, Z = MAX-1
       index3 = (dimSize-1)*offsetZ + j*offsetY + 1;
-      triplets.emplace_back(index3,index3, 1.0);
+      triplets0.emplace_back(index3,index3, 1.0);
       // X = MAX-1, Z = MAX-1
       index4 = (dimSize-1)*offsetZ + j*offsetY + dimSize-1;
-      triplets.emplace_back(index4,index4, 1.0);
+      triplets0.emplace_back(index4,index4, 1.0);
       
-      B[index1] = pExac[index1]; B[index2] = pExac[index2]; B[index3] = pExac[index3]; B[index4] = pExac[index4];
+      B0[index1] = pExac[index1]; B0[index2] = pExac[index2]; B0[index3] = pExac[index3]; B0[index4] = pExac[index4];
     }}
     //! X = Y = (0 || MAX)' du/dx = 0, dv/dy = 0
     for (size_t k = 2; k < dimSize-1; k++)
     {{
       // X = Y = 0
       uint index1 (k*offsetZ);
-      triplets.emplace_back(index1,index1, 1.0);
+      triplets0.emplace_back(index1,index1, 1.0);
       // X = MAX, Y = 0
       uint index2 (k*offsetZ + dimSize);
-      triplets.emplace_back(index2,index2, 1.0);
+      triplets0.emplace_back(index2,index2, 1.0);
       // X = 0, Y = MAX
       uint index3 (k*offsetZ + dimSize*offsetY);
-      triplets.emplace_back(index3,index3, 1.0);
+      triplets0.emplace_back(index3,index3, 1.0);
       // X = MAX, Y = MAX
       uint index4 (k*offsetZ + dimSize*offsetY + dimSize);
-      triplets.emplace_back(index4,index4, 1.0);
+      triplets0.emplace_back(index4,index4, 1.0);
       
-      B[index1] = pExac[index1]; B[index2] = pExac[index2]; B[index3] = pExac[index3]; B[index4] = pExac[index4];
+      B0[index1] = pExac[index1]; B0[index2] = pExac[index2]; B0[index3] = pExac[index3]; B0[index4] = pExac[index4];
 
       // X = Y = 1
       index1 = k*offsetZ + offsetY + 1;
-      triplets.emplace_back(index1,index1, 1.0);
+      triplets0.emplace_back(index1,index1, 1.0);
       // X = MAX-1, Y = 1
       index2 = k*offsetZ + offsetY + dimSize-1;
-      triplets.emplace_back(index2,index2, 1.0);
+      triplets0.emplace_back(index2,index2, 1.0);
       // X = 1, Y = MAX-1
       index3 = k*offsetZ + (dimSize-1)*offsetY + 1;
-      triplets.emplace_back(index3,index3, 1.0);
+      triplets0.emplace_back(index3,index3, 1.0);
       // X = MAX-1, Y = MAX-1
       index4 = k*offsetZ + (dimSize-1)*offsetY + dimSize-1;
-      triplets.emplace_back(index4,index4, 1.0);
+      triplets0.emplace_back(index4,index4, 1.0);
       
-      B[index1] = pExac[index1]; B[index2] = pExac[index2]; B[index3] = pExac[index3]; B[index4] = pExac[index4];
+      B0[index1] = pExac[index1]; B0[index2] = pExac[index2]; B0[index3] = pExac[index3]; B0[index4] = pExac[index4];
     }}
     //-------------------------------------------------------------------------
 
     //------------------------- cube vertices ---------------------------------
     // X = Y = Z = 1
     index = offsetZ + offsetY + 1;
-    triplets.emplace_back(index,index, 1.0);
-    B[index] = pExac[index];//B[index] = p[index]; 
+    triplets0.emplace_back(index,index, 1.0);
+    B0[index] = pExac[index];
     // X = MAX-1, Y = Z = 1
     index = offsetZ + offsetY + dimSize-1;
-    triplets.emplace_back(index,index, 1.0);
-    B[index] = pExac[index];//B[index] = p[index];
+    triplets0.emplace_back(index,index, 1.0);
+    B0[index] = pExac[index];
     // X = Z = 1, Y = MAX-1
     index = offsetZ + (dimSize-1)*offsetY + 1;
-    triplets.emplace_back(index,index, 1.0);
-    B[index] = pExac[index];//B[index] = p[index];
+    triplets0.emplace_back(index,index, 1.0);
+    B0[index] = pExac[index];
     // X = Y = 1, Z = MAX-1
     index = (dimSize-1)*offsetZ + offsetY + 1;
-    triplets.emplace_back(index,index, 1.0);
-    B[index] = pExac[index];//B[index] = p[index];
+    triplets0.emplace_back(index,index, 1.0);
+    B0[index] = pExac[index];
     // X = Y = MAX-1, Z = 1
     index = offsetZ + (dimSize-1)*offsetY + dimSize-1;
-    triplets.emplace_back(index,index, 1.0);
-    B[index] = pExac[index];//B[index] = p[index];
+    triplets0.emplace_back(index,index, 1.0);
+    B0[index] = pExac[index];
     // X = Z = MAX-1, Y = 1
     index = (dimSize-1)*offsetZ + offsetY + dimSize-1;
-    triplets.emplace_back(index,index, 1.0);
-    B[index] = pExac[index];//B[index] = p[index];
+    triplets0.emplace_back(index,index, 1.0);
+    B0[index] = pExac[index];
     // Y = Z = MAX-1, X = 1
     index = (dimSize-1)*offsetZ + (dimSize-1)*offsetY + 1;
-    triplets.emplace_back(index,index, 1.0);
-    B[index] = pExac[index];//B[index] = p[index];
+    triplets0.emplace_back(index,index, 1.0);
+    B0[index] = pExac[index];
     // X = Y = Z = MAX-1
     index = (dimSize-1)*offsetZ + (dimSize-1)*offsetY + dimSize-1;
-    triplets.emplace_back(index,index, 1.0);
-    B[index] = pExac[index];//B[index] = p[index];
+    triplets0.emplace_back(index,index, 1.0);
+    B0[index] = pExac[index];
 
     // X = Y = Z = 0
     index = 0;
-    triplets.emplace_back(index,index, 1.0);
-    B[index] = pExac[index];//B[index] = p[index];
+    triplets0.emplace_back(index,index, 1.0);
+    B0[index] = pExac[index];
     // X = MAX, Y = Z = 0
     index = dimSize;
-    triplets.emplace_back(index,index, 1.0);
-    B[index] = pExac[index];//B[index] = p[index];
+    triplets0.emplace_back(index,index, 1.0);
+    B0[index] = pExac[index];
     // X = Z = 0, Y = MAX
     index = dimSize*offsetY;
-    triplets.emplace_back(index,index, 1.0);
-    B[index] = pExac[index];//B[index] = p[index];
+    triplets0.emplace_back(index,index, 1.0);
+    B0[index] = pExac[index];
     // X = Y = 0, Z = MAX
     index = dimSize*offsetZ;
-    triplets.emplace_back(index,index, 1.0);
-    B[index] = pExac[index];//B[index] = p[index];
+    triplets0.emplace_back(index,index, 1.0);
+    B0[index] = pExac[index];
     // X = Y = MAX, Z = 0
     index = dimSize*offsetY + dimSize;
-    triplets.emplace_back(index,index, 1.0);
-    B[index] = pExac[index];//B[index] = p[index];
+    triplets0.emplace_back(index,index, 1.0);
+    B0[index] = pExac[index];
     // X = Z = MAX, Y = 0
     index = dimSize*offsetZ + dimSize;
-    triplets.emplace_back(index,index, 1.0);
-    B[index] = pExac[index];//B[index] = p[index];
+    triplets0.emplace_back(index,index, 1.0);
+    B0[index] = pExac[index];
     // Y = Z = MAX, X = 0
     index = dimSize*offsetZ + dimSize*offsetY;
-    triplets.emplace_back(index,index, 1.0);
-    B[index] = pExac[index];//B[index] = p[index];
+    triplets0.emplace_back(index,index, 1.0);
+    B0[index] = pExac[index];
     // X = Y = Z = MAX
     index = dimSize*offsetZ + dimSize*offsetY + dimSize;
-    triplets.emplace_back(index,index, 1.0);
-    B[index] = pExac[index];//B[index] = p[index];
+    triplets0.emplace_back(index,index, 1.0);
+    B0[index] = pExac[index];
     //-------------------------------------------------------------------------
 
     //-------------------------------------------------------------------------
@@ -830,7 +878,7 @@ void compute_cube(
     //-------------------------------------------------------------------------
     // call Eigen solver for Pressure (idk, does is support concurrency or not)
     //-------------------------------------------------------------------------
-    A.setFromTriplets (triplets.begin(), triplets.end());
+    A.setFromTriplets (triplets0.begin(), triplets0.end());
     // biconjugate gradient stabilized algorithm
     Eigen::BiCGSTAB<Eigen::SparseMatrix<double>, Eigen::DiagonalPreconditioner<double>> solver(A);
     if (solver.info() != Eigen::Success)
@@ -840,7 +888,7 @@ void compute_cube(
       return;
     }}
     Eigen::VectorXd pHat(vecSize);
-    pHat = solver.solveWithGuess(B, p);
+    pHat = solver.solveWithGuess(B0, p);
     if (solver.info() != Eigen::Success)
     {{
       outputFile << "Failed to solve the system with Eigen, tick = " << tick << std::endl;
@@ -855,7 +903,7 @@ void compute_cube(
 
     // residual
     //-------------------------------------------------------------------------
-    const double velResidual = velocity_residual(params, u,v,w,p0, uExac,vExac,wExac,pExac);
+    const double velResidual = velocity_residual({residual_input});
     outputResidualFile << std::scientific << velResidual << std::endl;
     //-------------------------------------------------------------------------
 
@@ -874,74 +922,7 @@ void compute_cube(
 
 
 //======================================== RESIDUALS ==============================================
-double velocity_residual(
-  const model_data& params, 
-  std::vector<double>& uEst, std::vector<double>& vEst, std::vector<double>& wEst, 
-  std::vector<double>& pEst,
-  std::vector<double>& uExac, std::vector<double>& vExac, std::vector<double>& wExac, 
-  std::vector<double>& pExac)
-{{
-  const auto dimSize ( params.domainPartition );
-  const uint offsetY = dimSize + 1;
-  const uint offsetZ = (dimSize+1) * (dimSize+1);
-
-  const double tau ( params.duration / params.timePartition ); // time step
-  const double hX (params.xLen / dimSize );
-  const double hY (params.yLen / dimSize );
-  const double hZ (params.zLen / dimSize );
-
-  double vectorResidual (0.0);
-  //---------------------------- inner knots --------------------------------
-  for (size_t k = 1; k < dimSize; k++)      // Z-Axis
-  {{
-    for (size_t j = 1; j < dimSize; j++)    // Y-Axis
-    {{
-      for (size_t i = 1; i < dimSize; i++)  // X-Axis
-      {{
-        uint index (k*offsetZ + j*offsetY + i);
-        double resTerm (0.0); // residual term
-        //! Insert precise values to the scheme, take the difference with the estimated values
-        resTerm = uEst[index] - ( uExac[index] - tau * (
-          (uExac[index+1]*uExac[index+1] - uExac[index-1]*uExac[index-1]) / (2.0*hX) + 
-          (uExac[index+offsetY]*vExac[index+offsetY] - uExac[index-offsetY]*vExac[index-offsetY]) / (2.0*hY) + 
-          (uExac[index+offsetZ]*wExac[index+offsetZ] - uExac[index-offsetZ]*wExac[index-offsetZ]) / (2.0*hZ) +
-          (pExac[index+1] - pExac[index-1]) / (2.0*hX) -
-          ( (uExac[index+1] - 2*uExac[index] + uExac[index-1]) / (hX*hX) +
-            (uExac[index+offsetY] - 2*uExac[index] + uExac[index-offsetY]) / (hY*hY) +
-            (uExac[index+offsetZ] - 2*uExac[index] + uExac[index-offsetZ]) / (hZ*hZ)
-          ) / params.Reyn
-        ) );
-        vectorResidual += resTerm*resTerm;
-
-        resTerm = vEst[index] - ( vExac[index] - tau * (
-          (vExac[index+offsetY]*vExac[index+offsetY] - vExac[index-offsetY]*vExac[index-offsetY]) / (2.0*hY) + 
-          (uExac[index+1]*vExac[index+1] - uExac[index-1]*vExac[index-1]) / (2.0*hX) + 
-          (vExac[index+offsetZ]*wExac[index+offsetZ] - vExac[index-offsetZ]*wExac[index-offsetZ]) / (2.0*hZ) +
-          (pExac[index+offsetY] - pExac[index-offsetY]) / (2.0*hY) -
-          ( (vExac[index+1] - 2*vExac[index] + vExac[index-1]) / (hX*hX) +
-            (vExac[index+offsetY] - 2*vExac[index] + vExac[index-offsetY]) / (hY*hY) +
-            (vExac[index+offsetZ] - 2*vExac[index] + vExac[index-offsetZ]) / (hZ*hZ)
-          ) / params.Reyn
-        ) );
-        vectorResidual += resTerm*resTerm;
-
-        resTerm = wEst[index] - ( wExac[index] - tau * (
-          (wExac[index+offsetZ]*wExac[index+offsetZ] - wExac[index-offsetZ]*wExac[index-offsetZ]) / (2.0*hZ) + 
-          (uExac[index+1]*wExac[index+1] - uExac[index-1]*wExac[index-1]) / (2.0*hX) + 
-          (vExac[index+offsetY]*wExac[index+offsetY] - vExac[index-offsetY]*wExac[index-offsetY]) / (2.0*hY) +
-          (pExac[index+offsetZ] - pExac[index-offsetZ]) / (2.0*hZ) -
-          ( (wExac[index+1] - 2*wExac[index] + wExac[index-1]) / (hX*hX) +
-            (wExac[index+offsetY] - 2*wExac[index] + wExac[index-offsetY]) / (hY*hY) +
-            (wExac[index+offsetZ] - 2*wExac[index] + wExac[index-offsetZ]) / (hZ*hZ)
-          ) / params.Reyn
-        ) );
-        vectorResidual += resTerm*resTerm;
-      }}
-    }}
-  }}
-  //-------------------------------------------------------------------------
-  return std::sqrt(vectorResidual);
-}}
+{velocity_residual_cpp}
 //=================================================================================================
 
 """

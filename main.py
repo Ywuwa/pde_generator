@@ -41,11 +41,13 @@ if __name__ == "__main__":
     constants, equations, implicit_eq = parse_input_file("input.txt")
     print(equations)
     print(implicit_eq)
-    code, header = generate_src_n_header(constants, equations, implicit_eq)
+    code, header, compute_flow_cpp_code = generate_src_n_header(constants, equations, implicit_eq)
 
     with open("src/generated.cpp", "w") as out:
         out.write(code)
     with open("headers/generated.hpp", "w") as out:
         out.write(header)
+    with open("src/compute_flow.cpp", "w") as out:
+        out.write(compute_flow_cpp_code)
 
     print("Done.")
