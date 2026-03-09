@@ -225,12 +225,12 @@ def generate_src_n_header(constants: list, equations: list, implicit_eq: list):
     Собирает воедино cpp, hpp файлы
     """
     constant_names = {n for n, _ in constants}
-    signature_args = []
-    time_eq_input_args = []
-    res_input_args = []
+    signature_args = []       # common functions' signature
+    time_eq_input_args = []   # arguements of the explicit time equations
+    res_input_args = []       # arguements of the velocity residual function
     
-    time_eq_code = []
-    residual_code = []
+    time_eq_code = []         # explicit time equations code
+    residual_code = []        # velocity residual code
     
     for equation in equations:
       code, variables, vel_res_code = handle_time_equation(
@@ -265,7 +265,7 @@ def generate_src_n_header(constants: list, equations: list, implicit_eq: list):
       impl_eq_code.append(code)
       index += 1
       
-    signature_args.extend([
+    common_signature_extension = [
         "const uint offset_X",
         "const uint offset_Y",
         "const uint offset_Z",
@@ -274,23 +274,15 @@ def generate_src_n_header(constants: list, equations: list, implicit_eq: list):
         "const double h_Z",
         "const double tau",
         "const size_t dimSize"
-    ])
-    impl_signature_args.extend([
-        "const uint offset_X",
-        "const uint offset_Y",
-        "const uint offset_Z",
-        "const double h_X",
-        "const double h_Y",
-        "const double h_Z",
-        "const double tau",
-        "const size_t dimSize"
-    ])
-    time_eq_input_args.extend(["offsetX", "offsetY", "offsetZ", 
-                                "hX", "hY", "hZ", "tau", "dimSize"])
-    impl_eq_input_args.extend(["offsetX", "offsetY", "offsetZ", 
-                                "hX", "hY", "hZ", "tau", "dimSize"])
-    res_input_args.extend(["offsetX", "offsetY", "offsetZ", 
-                                "hX", "hY", "hZ", "tau", "dimSize"])
+    ]
+    signature_args.extend(common_signature_extension)
+    impl_signature_args.extend(common_signature_extension)
+    
+    common_input_extension = ["offsetX", "offsetY", "offsetZ", 
+                                "hX", "hY", "hZ", "tau", "dimSize"]
+    time_eq_input_args.extend(common_input_extension)
+    impl_eq_input_args.extend(common_input_extension)
+    res_input_args.extend(common_input_extension)
 
     signature = ",\n               ".join(signature_args)
     time_eq_input = ", ".join(time_eq_input_args)    

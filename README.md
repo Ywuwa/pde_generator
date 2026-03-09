@@ -32,6 +32,7 @@ This is a study pet-project, PDE-generator, which builds C++ code from a Navier-
 2. If PDE has partial time derivative, write it first (for ex., Dt(u) + ...)
 3. If PDE has no partial time derivative, point out which variable is about to be computed (for ex., "... = 0, p" means we had to solve the system "A*p = b")
 
+> Current version of the project fully compiles and works ONLY IF the system has 3 explicit velocity time equations and 1 implicit pressure equation. Otherwise it only generates correct "generated.*" files which can be used the way u like.
 > Absolute path were set inside settings.hpp, change it in order to be able run program\
 > Eigen is needed to run C++ program
 
