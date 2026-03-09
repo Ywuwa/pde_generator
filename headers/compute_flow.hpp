@@ -20,7 +20,7 @@ void compute_cube(
  *  \param[in] pExacc - exact pressure
  *  \return residial value
  */
-double residual(
+double velocity_residual(
   const model_data& params, 
   std::vector<double>& uEst, std::vector<double>& vEst, std::vector<double>& wEst, 
   std::vector<double>& pEst,
