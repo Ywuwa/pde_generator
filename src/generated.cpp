@@ -25,6 +25,10 @@ void generated(std::vector<double>& u,
       uint index (k*offset_Z + j*offset_Y + offset_X);
       u1[index] = u[index] + tau*((C1 * (u[index + offset_X] - u[index - offset_X]) / (2*h_X)));
     v1[index] = v[index] + tau*((C2 * (v[index + offset_Y] - v[index - offset_Y]) / (2*h_Y)));
+    const double indexVal_000 = (u[index + offset_X] * 1/(2*h_X)) + ((-1 * u[index - offset_X]) * 1/(2*h_X));
+                triplets.emplace_back(index,index+(0)*offset_X+(0)*offset_Y+(0)*offset_Z,indexVal_000);
+    
+    B[index] = -(((u[index + offset_Z] + (-1 * u[index - offset_Z])) * 1/(2*h_Z)));
       }
     }
   }

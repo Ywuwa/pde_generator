@@ -10,11 +10,18 @@ class Expr:
 
 class Var(Expr):
     """
-    Переменная (u, v, w,...)
+    Переменная
     """
     def __init__(self, name):
         self.name = name
 
+class IndexedVar(Expr):
+    """
+    Индексированная переменная
+    """
+    def __init__(self,name,index):
+        self.name=name
+        self.index=index
 
 class Const(Expr):
     """

@@ -20,3 +20,21 @@ Discretization pass
 Pure algebraic tree
    ↓
 C++ generation
+=============================================
+DSL строка
+   ↓
+transform_constraint_equation
+   ↓
+parse_expr
+   ↓
+AST
+   ↓
+discretize_ast
+   ↓
+discrete AST
+   ↓
+distributive_expand
+   ↓
+generate_stencil_system
+   ↓
+generate_cpp

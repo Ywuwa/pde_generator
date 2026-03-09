@@ -5,7 +5,8 @@ from codegen import generate_src_n_header
 def parse_input_file(filename):
 
     constants = []
-    equations = []
+    time_equations = []
+    implicit_eq = []
 
     with open(filename, "r") as f:
         for line in f:
@@ -14,7 +15,12 @@ def parse_input_file(filename):
                 continue
 
             if line.startswith("Dt("):
-                equations.append(line)
+                time_equations.append(line)
+                continue
+
+            match_eq = re.match(r'(.+)=\s*0\s*,\s*([A-Za-z_]\w*)', line)
+            if match_eq:
+                implicit_eq.append(line)
                 continue
 
             match = re.match(r'^([A-Za-z_]\w*)\s*=\s*(.+)$', line)
@@ -24,17 +30,18 @@ def parse_input_file(filename):
 
             raise ValueError(f"Unknown line: {line}")
 
-    if len(equations) == 0:
-        raise ValueError("No Dt equation found")
+    if len(time_equations) == 0 and len(implicit_eq) == 0 :
+        raise ValueError("No equation found")
 
-    return constants, equations
+    return constants, time_equations, implicit_eq
 
 
 if __name__ == "__main__":
 
-    constants, equations = parse_input_file("input.txt")
+    constants, equations, implicit_eq = parse_input_file("input.txt")
     print(equations)
-    code, header = generate_src_n_header(constants, equations)
+    print(implicit_eq)
+    code, header = generate_src_n_header(constants, equations, implicit_eq)
 
     with open("src/generated.cpp", "w") as out:
         out.write(code)
