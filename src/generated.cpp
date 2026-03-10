@@ -60,7 +60,7 @@ void generated_impl_eq(std::vector<double>& p,
     const double indexVal_R00 = (1/(2*h_X) * u[index]);
                 triplets0.emplace_back(index,index+(1)*offset_X+(0)*offset_Y+(0)*offset_Z,indexVal_R00);
     
-    B0[index] = -(((u[index + offset_Z] + (-1 * u[index - offset_Z])) * 1/(2*h_Z)));
+    B0[index] = 1/tau*p[index] -(((u[index + offset_Z] + (-1 * u[index - offset_Z])) * 1/(2*h_Z)));
       }
     }
   }

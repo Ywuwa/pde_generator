@@ -83,27 +83,31 @@ def extract_coef_and_index(expr: Expr, var: str):
             coef = others[0]
             for o in others[1:]:
                 coef = Mul(coef, o)
-
+        
         return coef, indexed.index
 
     return None
 
-def collect_stencil_coefficients(lhs_ast: Expr, var: str):
+def collect_stencil_coefficients(lhs_ast: Expr, var: str, constants: set):
     terms = flatten_sum(lhs_ast)
     coef_map = defaultdict(list)
+    extra_rhs = ""
     for t in terms:
         res = extract_coef_and_index(t, var)
         if not res:
             continue
         coef_ast, index_expr = res
         dx,dy,dz = decode_offset(index_expr)
+        check_coef_str = generate_cpp(discretize_ast(coef_ast, constants))
+        if (dx,dy,dz)==(0,0,0) and "1/tau" in check_coef_str:
+          extra_rhs = check_coef_str + f"*{var}[{index_expr}]"
         coef_map[(dx,dy,dz)].append(coef_ast)
 
-    return coef_map
+    return coef_map, extra_rhs
 
 def generate_stencil_system(lhs_ast: Expr, rhs_ast: Expr, 
                             var: str, constants: set, ind: int):
-    coef_map = collect_stencil_coefficients(lhs_ast, var)
+    coef_map, extra_rhs = collect_stencil_coefficients(lhs_ast, var, constants)
     lines = []
     for (dx,dy,dz), coefs in sorted(coef_map.items()):
         code = offset_to_code(dx,dy,dz)
@@ -111,11 +115,11 @@ def generate_stencil_system(lhs_ast: Expr, rhs_ast: Expr,
         lines.append(
             f"""const double indexVal_{code} = {coef_expr};
                 triplets{ind}.emplace_back(index,index+({dx})*offset_X+({dy})*offset_Y+({dz})*offset_Z,indexVal_{code});"""
-        )
+        )          
 
     lines.append("")
     lines.append(
-        f"B{ind}[index] = -({generate_cpp(discretize_ast(rhs_ast, constants))});"
+        f"B{ind}[index] = {extra_rhs} -({generate_cpp(discretize_ast(rhs_ast, constants))});"
     )
     return lines
 
