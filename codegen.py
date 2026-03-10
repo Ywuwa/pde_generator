@@ -40,10 +40,9 @@ def offset_to_code(dx, dy, dz):
 
     return f"{sym(dx)}{sym(dy)}{sym(dz)}"
 
-def flatten_sum(expr):
+def flatten_sum(expr: Expr) -> [Expr]:
     stack = [expr]
     result = []
-
     while stack:
         e = stack.pop()
         if isinstance(e, Add):
@@ -54,7 +53,7 @@ def flatten_sum(expr):
 
     return result
 
-def extract_coef_and_index(expr, var):
+def extract_coef_and_index(expr: Expr, var: str):
     # p[index]
     if isinstance(expr, IndexedVar) and expr.name == var:
         return None, expr.index
@@ -92,7 +91,7 @@ def extract_coef_and_index(expr, var):
 
     return None
 
-def collect_stencil_coefficients(lhs_ast, var):
+def collect_stencil_coefficients(lhs_ast: Expr, var: str):
     terms = flatten_sum(lhs_ast)
     coef_map = defaultdict(list)
     for t in terms:
@@ -110,7 +109,6 @@ def generate_stencil_system(lhs_ast: Expr, rhs_ast: Expr,
     coef_map = collect_stencil_coefficients(lhs_ast, var)
     lines = []
     for (dx,dy,dz), coefs in sorted(coef_map.items()):
-        print(dx,dy,dz)
         code = offset_to_code(dx,dy,dz)
         coef_expr = " + ".join(generate_cpp(discretize_ast(c, constants)) for c in coefs)
         lines.append(

@@ -7,7 +7,7 @@ def discretize(expr, constants):
 
 def _gen_cpp(expr, constants, shift=""):
     """
-    Генерирует C++ код
+    Генерирует C++ код (используется для явных уравнений с частной производной по времени)
     """
     if isinstance(expr, Const):
         return str(expr.value)
@@ -130,12 +130,15 @@ def discretize_ast(expr, constants):
 
         plus = _shift(expr.expr, f"index + {offset}", constants)
         minus = _shift(expr.expr, f"index - {offset}", constants)
-
+        
+        plus = expand_products(plus)
+        minus = expand_products(minus)
+        
         numerator = Add(
             plus,
             Mul(Const(-1), minus)
         )
-
+        
         return Mul(
             numerator,
             Const(f"1/(2*{h})")
@@ -143,11 +146,38 @@ def discretize_ast(expr, constants):
 
     raise NotImplementedError(f"Unsupported discretization: {type(expr)}")
 
+def expand_products(expr):
 
+    if isinstance(expr, Mul):
+
+        if isinstance(expr.left, Add):
+            return Add(
+                expand_products(Mul(expr.left.left, expr.right)),
+                expand_products(Mul(expr.left.right, expr.right))
+            )
+
+        if isinstance(expr.right, Add):
+            return Add(
+                expand_products(Mul(expr.left, expr.right.left)),
+                expand_products(Mul(expr.left, expr.right.right))
+            )
+
+        return Mul(
+            expand_products(expr.left),
+            expand_products(expr.right)
+        )
+
+    if isinstance(expr, Add):
+        return Add(
+            expand_products(expr.left),
+            expand_products(expr.right)
+        )
+
+    return expr
+  
 # ==========================================
 # SHIFT (добавляет индекс)
 # ==========================================
-
 def _shift(expr, index, constants):
 
     if isinstance(expr, Var):
