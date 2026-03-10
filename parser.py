@@ -1,5 +1,5 @@
 import ast
-from ast_nodes import Var, Const, Add, Mul, Func
+from ast_nodes import Var, Const, Add, Mul, Func, TimeDerivative
 from symbolic import diff, laplace
 
 def parse_expr(expr_str):
@@ -44,6 +44,9 @@ def build_ast(node):
 
         if func_name in ["DX", "DY", "DZ"]:
             return diff(arg_expr, func_name[1])
+        
+        if func_name == "Dt":
+            return TimeDerivative(arg_expr)
 
         if func_name == "L":
             return laplace(arg_expr)

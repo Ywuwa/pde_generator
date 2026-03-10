@@ -65,3 +65,10 @@ class Derivative(Expr):
     def __init__(self, expr, axis):
         self.expr = expr
         self.axis = axis
+        
+class TimeDerivative(Expr):
+    """
+    Производная по времени: Dt(u)
+    """
+    def __init__(self, expr):
+        self.expr = expr
