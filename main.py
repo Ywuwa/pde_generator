@@ -13,14 +13,14 @@ def parse_input_file(filename):
             line = line.strip()
             if not line:
                 continue
-
-            if line.startswith("Dt("):
-                time_equations.append(line)
-                continue
-
+              
             match_eq = re.match(r'(.+)=\s*0\s*,\s*([A-Za-z_]\w*)', line)
             if match_eq:
                 implicit_eq.append(line)
+                continue
+                
+            if line.startswith("Dt("):
+                time_equations.append(line)
                 continue
 
             match = re.match(r'^([A-Za-z_]\w*)\s*=\s*(.+)$', line)

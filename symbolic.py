@@ -1,4 +1,4 @@
-from ast_nodes import Const, Var, Add, Mul, Func, Derivative, AXES
+from ast_nodes import Const, Var, Add, Mul, Func, Derivative, TimeDerivative, AXES
 # calculus
 def diff(expr, axis):
     """
@@ -77,6 +77,9 @@ def contains_var(expr, var):
 
     if isinstance(expr, Derivative):
         return contains_var(expr.expr, var)
+    
+    if isinstance(expr, TimeDerivative):
+        return contains_var(expr.expr, var)
 
     return False
   
@@ -112,10 +115,10 @@ def split_by_variable(expr, variable):
     right = []
 
     for t in terms:
-        if contains_var(t, variable):
-            left.append(t)
-        else:
-            right.append(t)
+      if contains_var(t, variable):
+          left.append(t)
+      else:
+          right.append(t)
 
     lhs = build_sum(left)
     rhs = build_sum(right)

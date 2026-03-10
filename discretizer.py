@@ -1,5 +1,5 @@
 # discretizer.py
-from ast_nodes import Const, Var, Add, Mul, Func, Derivative, IndexedVar
+from ast_nodes import Const, Var, Add, Mul, Func, Derivative, TimeDerivative, IndexedVar
 
 def discretize(expr, constants):
     return _gen_cpp(expr, constants)
@@ -90,9 +90,8 @@ def discretize_ast(expr, constants):
 
     if isinstance(expr, Func):
         return Func(expr.name, discretize_ast(expr.arg, constants))
-
+  
     if isinstance(expr, Derivative):
-
         axis = expr.axis
         offset = f"offset_{axis}"
         h = f"h_{axis}"
@@ -143,7 +142,20 @@ def discretize_ast(expr, constants):
             numerator,
             Const(f"1/(2*{h})")
         )
-
+      
+    if isinstance(expr, TimeDerivative):
+        inner = expr.expr
+    
+        if not isinstance(inner, Var):
+            raise ValueError("Dt must be applied to a variable")
+    
+        new = IndexedVar(inner.name , "index")
+        old = IndexedVar(inner.name + "0", "index")
+    
+        return Mul(
+            Const("1/tau"),
+            Add(new, Mul(Const(-1), old))
+        )
     raise NotImplementedError(f"Unsupported discretization: {type(expr)}")
 
 def expand_products(expr):
@@ -181,7 +193,6 @@ def expand_products(expr):
 def _shift(expr, index, constants):
 
     if isinstance(expr, Var):
-
         if expr.name in constants:
             return expr
 

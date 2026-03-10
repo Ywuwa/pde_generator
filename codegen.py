@@ -65,14 +65,11 @@ def extract_coef_and_index(expr: Expr, var: str):
         stack = [expr]
         while stack:
             node = stack.pop()
-
             if isinstance(node, Mul):
                 stack.append(node.left)
                 stack.append(node.right)
-
             elif isinstance(node, IndexedVar) and node.name == var:
                 indexed = node
-
             else:
                 others.append(node)
 

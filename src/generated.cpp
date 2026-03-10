@@ -53,12 +53,12 @@ void generated_impl_eq(std::vector<double>& p,
       for (size_t i = 1; i < dimSize; i++)  // X-Axis
       {
       uint index (k*offset_Z + j*offset_Y + offset_X);
-      const double indexVal_00L = ((1/(2*h_Z) * -1) * u[index]);
-                triplets0.emplace_back(index,index+(0)*offset_X+(0)*offset_Y+(-1)*offset_Z,indexVal_00L);
-    const double indexVal_000 = ((1/(2*h_Z) * u[index - offset_Z]) * -1) + (1/(2*h_Z) * u[index + offset_Z]);
+      const double indexVal_L00 = ((1/(2*h_X) * -1) * u[index]);
+                triplets0.emplace_back(index,index+(-1)*offset_X+(0)*offset_Y+(0)*offset_Z,indexVal_L00);
+    const double indexVal_000 = ((1/(2*h_X) * u[index - offset_X]) * -1) + (1/(2*h_X) * u[index + offset_X]) + 1/tau;
                 triplets0.emplace_back(index,index+(0)*offset_X+(0)*offset_Y+(0)*offset_Z,indexVal_000);
-    const double indexVal_00R = (1/(2*h_Z) * u[index]);
-                triplets0.emplace_back(index,index+(0)*offset_X+(0)*offset_Y+(1)*offset_Z,indexVal_00R);
+    const double indexVal_R00 = (1/(2*h_X) * u[index]);
+                triplets0.emplace_back(index,index+(1)*offset_X+(0)*offset_Y+(0)*offset_Z,indexVal_R00);
     
     B0[index] = -(((u[index + offset_Z] + (-1 * u[index - offset_Z])) * 1/(2*h_Z)));
       }
