@@ -41,13 +41,6 @@ int main(int argc, char* argv[]) {
   auto end = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> elapsed = end - start;
   std::cout << "Время выполнения: " << elapsed.count() << " секунд" << std::endl;
-
-  auto endConc = std::chrono::high_resolution_clock::now();
-
-  std::chrono::duration<double> elapsedConc = endConc - startConc;
-  std::cout << "Время выполнения: " << elapsedConc.count() << " секунд" << std::endl;
-  std::cout << std::scientific << std::setprecision(6)
-              << "aka " << elapsedConc.count() << " секунд\n";*/
   
   std::ofstream outputFile(model.PATH + model.PATH_log, std::ios::app);
   if (outputFile.is_open()) outputFile << "execution is finished" << '\n';

@@ -108,6 +108,8 @@ def collect_stencil_coefficients(lhs_ast: Expr, var: str, constants: set):
 def generate_stencil_system(lhs_ast: Expr, rhs_ast: Expr, 
                             var: str, constants: set, ind: int):
     coef_map, extra_rhs = collect_stencil_coefficients(lhs_ast, var, constants)
+    extra_rhs_flag = False
+    if len(extra_rhs) > 1: extra_rhs_flag = True
     lines = []
     for (dx,dy,dz), coefs in sorted(coef_map.items()):
         code = offset_to_code(dx,dy,dz)
@@ -121,7 +123,7 @@ def generate_stencil_system(lhs_ast: Expr, rhs_ast: Expr,
     lines.append(
         f"B{ind}[index] = {extra_rhs} -({generate_cpp(discretize_ast(rhs_ast, constants))});"
     )
-    return lines
+    return lines, extra_rhs_flag
 
 def handle_constraint_equation(lhs_ast: Expr, rhs_ast: Expr, 
                                var: str, constants_names: set, ind: int):
@@ -141,10 +143,10 @@ def handle_constraint_equation(lhs_ast: Expr, rhs_ast: Expr,
     # 2. Раскрытие скобок
     lhs_ast = distributive_expand(lhs_ast)
     # 3. Генерация stencil
-    lines = generate_stencil_system(lhs_ast, rhs_ast, var, constants_names, ind)
+    lines, extra_rhs_flag = generate_stencil_system(lhs_ast, rhs_ast, var, constants_names, ind)
 
     joined_lines = "\n    ".join(lines)
-    return joined_lines
+    return joined_lines, extra_rhs_flag
 
 def transform_constraint_equation(line: str, constants: set, index: int):
 
@@ -160,7 +162,8 @@ def transform_constraint_equation(line: str, constants: set, index: int):
     varset = set()
     collect_variables(expr, varset, constants)
     lhs, rhs = split_by_variable(expr, variable)
-    return handle_constraint_equation(lhs, rhs, variable, constants, index), sorted(varset)
+    code, extra_rhs_flag = handle_constraint_equation(lhs, rhs, variable, constants, index)
+    return code, sorted(varset), extra_rhs_flag, variable
 
 
 
@@ -253,10 +256,16 @@ def generate_src_n_header(constants: list, equations: list, implicit_eq: list):
     impl_eq_code = []
     index = 0
     for eq in implicit_eq:
-      code, variables = transform_constraint_equation(eq, constants, index)
+      code, variables, extra_rhs_flag, var = transform_constraint_equation(eq, constants, index)
       for v in variables:
-        impl_signature_args.append(f"std::vector<double>& {v}")
-        impl_eq_input_args.append(f"{v}")
+        if v == var and extra_rhs_flag:
+          impl_signature_args.append(f"std::vector<double>& {v}")
+          impl_eq_input_args.append(f"{v}0")
+        elif v == var and extra_rhs_flag == False:
+          continue # skip this variable as it is hidden in stencil coefs
+        else:
+          impl_signature_args.append(f"std::vector<double>& {v}")
+          impl_eq_input_args.append(f"{v}")
       impl_signature_args.append(f"std::vector<Eigen::Triplet<double>>& triplets{index}")
       impl_signature_args.append(f"Eigen::VectorXd& B{index}")
       impl_eq_input_args.append(f"triplets{index}")
@@ -337,6 +346,8 @@ void generated_impl_eq({impl_signature})
 }}
 """, f"""
 #include "settings.hpp"
+#include <Eigen/Dense>
+#include <Eigen/Sparse>
 void generated_time_eq({signature});
 void generated_impl_eq({impl_signature});
 """, compute_flow_cpp_code
@@ -359,7 +370,7 @@ double velocity_residual({signature})
     {{
       for (size_t i = 1; i < dimSize; i++)  // X-Axis
       {{
-        uint index (k*offsetZ + j*offsetY + i);
+        uint index (k*offset_Z + j*offset_Y + i);
         double resTerm (0.0); // residual term
         //! Insert precise values to the scheme, take the difference with the estimated values
         {velocity_residual_code}
@@ -381,6 +392,10 @@ def generate_compute_flow_cpp(
 #include "../headers/generated.hpp"
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
+
+//======================================== RESIDUALS ==============================================
+{velocity_residual_cpp}
+//=================================================================================================
 
 //======================================= FLOW COMPUTATION ========================================
 void compute_cube(
@@ -622,7 +637,7 @@ void compute_cube(
 
     //! pressure compute
     //---------------------------- inner knots --------------------------------
-    generated_impl_eq({impl_eq_input})
+    generated_impl_eq({impl_eq_input});
     //-------------------------------------------------------------------------
 
     //---------------------------- border knots -------------------------------
@@ -903,17 +918,11 @@ void compute_cube(
     funcOutput(outputFuncFile, "/v3", std::to_string(tick), ".txt", w, params, false);
     funcOutput(outputFuncFile, "/p", std::to_string(tick), ".txt", p0, params, false);
     tick += 1;
-    if ((tick % 100 == 0)) std::cout << "tick: " << tick << '\n';
+    if ((tick % 100 == 0)) std::cout << "tick: " << tick << '\\n';
   }}
   for (size_t i = 0; i < vecSize; ++i) p0[i] = p[i];
-  std::cout << "final tick: " << tick << '\n';
+  std::cout << "final tick: " << tick << '\\n';
 }}
-//=================================================================================================
-
-
-
-//======================================== RESIDUALS ==============================================
-{velocity_residual_cpp}
 //=================================================================================================
 
 """

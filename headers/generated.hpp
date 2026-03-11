@@ -1,5 +1,7 @@
 
 #include "settings.hpp"
+#include <Eigen/Dense>
+#include <Eigen/Sparse>
 void generated_time_eq(std::vector<double>& u,
                std::vector<double>& u1,
                std::vector<double>& v,

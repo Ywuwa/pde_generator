@@ -6,6 +6,55 @@
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 
+//======================================== RESIDUALS ==============================================
+
+/*
+<var>   - exact value at knot
+<var>1  - estimated solution at knot
+*/
+double velocity_residual(std::vector<double>& u,
+               std::vector<double>& u1,
+               std::vector<double>& v,
+               std::vector<double>& v1,
+               const uint offset_X,
+               const uint offset_Y,
+               const uint offset_Z,
+               const double h_X,
+               const double h_Y,
+               const double h_Z,
+               const double tau,
+               const size_t dimSize)
+{
+      const double C1 = 5;
+        const double C2 = 8;
+  double vectorResidual (0.0);
+  //---------------------------- inner knots --------------------------------
+  for (size_t k = 1; k < dimSize; k++)      // Z-Axis
+  {
+    for (size_t j = 1; j < dimSize; j++)    // Y-Axis
+    {
+      for (size_t i = 1; i < dimSize; i++)  // X-Axis
+      {
+        uint index (k*offset_Z + j*offset_Y + i);
+        double resTerm (0.0); // residual term
+        //! Insert precise values to the scheme, take the difference with the estimated values
+        
+    resTerm = u1[index] - ( u[index] + tau*((C1 * (u[index + offset_X] - u[index - offset_X]) / (2*h_X))) );
+    vectorResidual += resTerm*resTerm;
+    
+    
+    resTerm = v1[index] - ( v[index] + tau*((C2 * (v[index + offset_Y] - v[index - offset_Y]) / (2*h_Y))) );
+    vectorResidual += resTerm*resTerm;
+    
+      }
+    }
+  }
+  //-------------------------------------------------------------------------
+  return std::sqrt(vectorResidual);
+}
+
+//=================================================================================================
+
 //======================================= FLOW COMPUTATION ========================================
 void compute_cube(
   const model_data& params, 
@@ -246,7 +295,7 @@ void compute_cube(
 
     //! pressure compute
     //---------------------------- inner knots --------------------------------
-    generated_impl_eq(p, u, triplets0, B0, offsetX, offsetY, offsetZ, hX, hY, hZ, tau, dimSize)
+    generated_impl_eq(p0, u, triplets0, B0, offsetX, offsetY, offsetZ, hX, hY, hZ, tau, dimSize);
     //-------------------------------------------------------------------------
 
     //---------------------------- border knots -------------------------------
@@ -527,63 +576,10 @@ void compute_cube(
     funcOutput(outputFuncFile, "/v3", std::to_string(tick), ".txt", w, params, false);
     funcOutput(outputFuncFile, "/p", std::to_string(tick), ".txt", p0, params, false);
     tick += 1;
-    if ((tick % 100 == 0)) std::cout << "tick: " << tick << '
-';
+    if ((tick % 100 == 0)) std::cout << "tick: " << tick << '\n';
   }
   for (size_t i = 0; i < vecSize; ++i) p0[i] = p[i];
-  std::cout << "final tick: " << tick << '
-';
+  std::cout << "final tick: " << tick << '\n';
 }
-//=================================================================================================
-
-
-
-//======================================== RESIDUALS ==============================================
-
-/*
-<var>   - exact value at knot
-<var>1  - estimated solution at knot
-*/
-double velocity_residual(std::vector<double>& u,
-               std::vector<double>& u1,
-               std::vector<double>& v,
-               std::vector<double>& v1,
-               const uint offset_X,
-               const uint offset_Y,
-               const uint offset_Z,
-               const double h_X,
-               const double h_Y,
-               const double h_Z,
-               const double tau,
-               const size_t dimSize)
-{
-      const double C1 = 5;
-        const double C2 = 8;
-  double vectorResidual (0.0);
-  //---------------------------- inner knots --------------------------------
-  for (size_t k = 1; k < dimSize; k++)      // Z-Axis
-  {
-    for (size_t j = 1; j < dimSize; j++)    // Y-Axis
-    {
-      for (size_t i = 1; i < dimSize; i++)  // X-Axis
-      {
-        uint index (k*offsetZ + j*offsetY + i);
-        double resTerm (0.0); // residual term
-        //! Insert precise values to the scheme, take the difference with the estimated values
-        
-    resTerm = u1[index] - ( u[index] + tau*((C1 * (u[index + offset_X] - u[index - offset_X]) / (2*h_X))) );
-    vectorResidual += resTerm*resTerm;
-    
-    
-    resTerm = v1[index] - ( v[index] + tau*((C2 * (v[index + offset_Y] - v[index - offset_Y]) / (2*h_Y))) );
-    vectorResidual += resTerm*resTerm;
-    
-      }
-    }
-  }
-  //-------------------------------------------------------------------------
-  return std::sqrt(vectorResidual);
-}
-
 //=================================================================================================
 
