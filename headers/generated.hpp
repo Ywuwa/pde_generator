@@ -2,11 +2,7 @@
 #include "settings.hpp"
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
-void generated_time_eq(std::vector<double>& u,
-               std::vector<double>& u1,
-               std::vector<double>& v,
-               std::vector<double>& v1,
-               const uint offset_X,
+void generated_time_eq(const uint offset_X,
                const uint offset_Y,
                const uint offset_Z,
                const double h_X,
@@ -14,8 +10,8 @@ void generated_time_eq(std::vector<double>& u,
                const double h_Z,
                const double tau,
                const size_t dimSize);
-void generated_impl_eq(std::vector<double>& p,
-               std::vector<double>& u,
+void generated_impl_eq(std::vector<double>& u,
+               std::vector<double>& v,
                std::vector<Eigen::Triplet<double>>& triplets0,
                Eigen::VectorXd& B0,
                const uint offset_X,

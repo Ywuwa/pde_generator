@@ -1,5 +1,1 @@
-C1 = 5
-C2 = 8
-Dt(u) + C1*DX(u) = 0
-Dt(v) + C2*DY(v) = 0
-Dt(p) + DX(p*u) + DZ(u) = 0, p
+Dt(u) + DX(u) + DZZ(v) = 0, u

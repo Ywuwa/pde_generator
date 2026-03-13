@@ -7,7 +7,6 @@ class Expr:
     """
     pass
 
-
 class Var(Expr):
     """
     Переменная

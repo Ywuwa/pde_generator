@@ -31,6 +31,22 @@ This is a study pet-project, PDE-generator, which builds C++ code from a Navier-
 1. Write constants first.
 2. If PDE has partial time derivative, write it first (for ex., Dt(u) + ...)
 3. If PDE has no partial time derivative, point out which variable is about to be computed (for ex., "... = 0, p" means we had to solve the system "A*p = b")
+4. Derivatives: Dt, DX, DY, DZ, DXY, DXZ, etc.
+
+## Simple Examples
++ Constants: `C = 1` -> `const double C = 1`. If there is no equations, the following error would be raised: "ValueError: No equation found"
++ Explicit time equation: `Dt(u) = 0` -> `u1[index] = u[index];`, `Dt(u) + DX(u) = 0` -> `u1[index] = u[index] + tau*((u[index + offset_X] - u[index - offset_X]) / (2*h_X));`. 
++ Implicit equation (Eigen solver is used): `Dt(u) + DX(u) + DZZ(v) = 0, u` ->
+    ```
+    const double indexVal_L00 = (1/(2*h_X) * -1);\
+    triplets0.emplace_back(index,index+(-1)*offset_X+(0)*offset_Y+(0)*offset_Z,indexVal_L00);\
+    const double indexVal_000 = 1/tau;\
+    triplets0.emplace_back(index,index+(0)*offset_X+(0)*offset_Y+(0)*offset_Z,indexVal_000);\
+    const double indexVal_R00 = 1/(2*h_X);\
+    triplets0.emplace_back(index,index+(1)*offset_X+(0)*offset_Y+(0)*offset_Z,indexVal_R00);\
+    
+    B0[index] = 1/tau*u[index] -((((v[index + offset_Z + offset_Z] + (-1 * v[index + offset_Z - offset_Z])) + ((-1 * v[index - offset_Z + offset_Z]) + v[index - offset_Z - offset_Z])) * 1/(4*h_Z*h_Z)));
+    ```
 
 > Current version of the project fully compiles and works ONLY IF the system has 3 explicit velocity time equations and 1 implicit pressure equation. Otherwise it only generates correct "generated.*" files which can be used the way u like.
 > Absolute path were set inside settings.hpp, change it in order to be able run program\

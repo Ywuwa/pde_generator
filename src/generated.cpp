@@ -1,10 +1,6 @@
 
 #include "../headers/generated.hpp"
-void generated_time_eq(std::vector<double>& u,
-               std::vector<double>& u1,
-               std::vector<double>& v,
-               std::vector<double>& v1,
-               const uint offset_X,
+void generated_time_eq(const uint offset_X,
                const uint offset_Y,
                const uint offset_Z,
                const double h_X,
@@ -13,8 +9,7 @@ void generated_time_eq(std::vector<double>& u,
                const double tau,
                const size_t dimSize)
 {
-      const double C1 = 5;
-        const double C2 = 8;
+  
 
   for (size_t k = 1; k < dimSize; k++)      // Z-Axis
   {
@@ -23,15 +18,14 @@ void generated_time_eq(std::vector<double>& u,
       for (size_t i = 1; i < dimSize; i++)  // X-Axis
       {
       uint index (k*offset_Z + j*offset_Y + offset_X);
-      u1[index] = u[index] + tau*((C1 * (u[index + offset_X] - u[index - offset_X]) / (2*h_X)));
-    v1[index] = v[index] + tau*((C2 * (v[index + offset_Y] - v[index - offset_Y]) / (2*h_Y)));
+      
       }
     }
   }
 }
 
-void generated_impl_eq(std::vector<double>& p,
-               std::vector<double>& u,
+void generated_impl_eq(std::vector<double>& u,
+               std::vector<double>& v,
                std::vector<Eigen::Triplet<double>>& triplets0,
                Eigen::VectorXd& B0,
                const uint offset_X,
@@ -43,8 +37,7 @@ void generated_impl_eq(std::vector<double>& p,
                const double tau,
                const size_t dimSize)
 {
-      const double C1 = 5;
-        const double C2 = 8;
+  
 
   for (size_t k = 1; k < dimSize; k++)      // Z-Axis
   {
@@ -53,14 +46,14 @@ void generated_impl_eq(std::vector<double>& p,
       for (size_t i = 1; i < dimSize; i++)  // X-Axis
       {
       uint index (k*offset_Z + j*offset_Y + offset_X);
-      const double indexVal_L00 = ((1/(2*h_X) * -1) * u[index]);
+      const double indexVal_L00 = (1/(2*h_X) * -1);
                 triplets0.emplace_back(index,index+(-1)*offset_X+(0)*offset_Y+(0)*offset_Z,indexVal_L00);
-    const double indexVal_000 = ((1/(2*h_X) * u[index - offset_X]) * -1) + (1/(2*h_X) * u[index + offset_X]) + 1/tau;
+    const double indexVal_000 = 1/tau;
                 triplets0.emplace_back(index,index+(0)*offset_X+(0)*offset_Y+(0)*offset_Z,indexVal_000);
-    const double indexVal_R00 = (1/(2*h_X) * u[index]);
+    const double indexVal_R00 = 1/(2*h_X);
                 triplets0.emplace_back(index,index+(1)*offset_X+(0)*offset_Y+(0)*offset_Z,indexVal_R00);
     
-    B0[index] = 1/tau*p[index] -(((u[index + offset_Z] + (-1 * u[index - offset_Z])) * 1/(2*h_Z)));
+    B0[index] = 1/tau*u[index] -((((v[index + offset_Z + offset_Z] + (-1 * v[index + offset_Z - offset_Z])) + ((-1 * v[index - offset_Z + offset_Z]) + v[index - offset_Z - offset_Z])) * 1/(4*h_Z*h_Z)));
       }
     }
   }
