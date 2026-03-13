@@ -1,1 +1,1 @@
-Dt(u) + DX(u) + DZZ(v) = 0, u
+Dt(u) + DX(u) + DZZ(v) = 0

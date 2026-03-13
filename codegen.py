@@ -234,7 +234,7 @@ def handle_time_equation(line: str, constant_names: set):
   
       return update_code, sorted(varset), residual_code
     
-    raise ValueError("Неверный формат временного уравнения") 
+    raise ValueError("Invalid time equation format") 
       
 
 
