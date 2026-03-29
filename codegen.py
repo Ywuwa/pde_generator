@@ -1,7 +1,7 @@
 # codegen.py
 import re
 from parser import parse_expr
-from discretizer import discretize_ast, generate_cpp
+from discretizer import discretize_ast, generate_cpp, simplify
 from symbolic import distributive_expand, split_by_variable
 from ast_nodes import Expr, Const, Add, Mul, IndexedVar
 from filegen import generate_equations_hpp, generate_equations_cpp, generate_velocity_residual_cpp, generate_compute_flow_cpp
@@ -13,20 +13,21 @@ def decode_offset(index_expr: str):
     index+offset_X-offset_Y -> (1,-1,0)
     """
     dx = dy = dz = 0
+    index_expr = index_expr.replace(" ", "")
 
-    if "offset_X" in index_expr and "+" in index_expr:
+    if "+offset_X" in index_expr:
         dx = 1
-    if "offset_X" in index_expr and "-" in index_expr:
+    if "-offset_X" in index_expr:
         dx = -1
 
-    if "offset_Y" in index_expr and "+" in index_expr:
+    if "+offset_Y" in index_expr:
         dy = 1
-    if "offset_Y" in index_expr and "-" in index_expr:
+    if "-offset_Y" in index_expr:
         dy = -1
 
-    if "offset_Z" in index_expr and "+" in index_expr:
+    if "+offset_Z" in index_expr:
         dz = 1
-    if "offset_Z" in index_expr and "-" in index_expr:
+    if "-offset_Z" in index_expr:
         dz = -1
 
     return dx, dy, dz
@@ -117,7 +118,7 @@ def generate_stencil_system(lhs_ast: Expr, rhs_ast: Expr,
         coef_expr = " + ".join(generate_cpp(discretize_ast(c, constants)) for c in coefs)
         lines.append(
             f"""const double indexVal_{code} = {coef_expr};
-                triplets{ind}.emplace_back(index,index+({dx})*offset_X+({dy})*offset_Y+({dz})*offset_Z,indexVal_{code});"""
+            triplets{ind}.emplace_back(index,index+({dx})*offset_X+({dy})*offset_Y+({dz})*offset_Z,indexVal_{code});"""
         )          
 
     lines.append("")
@@ -137,8 +138,12 @@ def handle_constraint_equation(lhs_ast: Expr, rhs_ast: Expr,
     var - переменная (например p)
     """
     # 1. Дискретизация
+    lhs_ast = simplify(lhs_ast)
+    rhs_ast = simplify(rhs_ast)
     lhs_ast = discretize_ast(lhs_ast, constants_names)
     rhs_ast = discretize_ast(rhs_ast, constants_names)
+    lhs_ast = simplify(lhs_ast)
+    rhs_ast = simplify(rhs_ast)
     
     # 2. Раскрытие скобок
     lhs_ast = distributive_expand(lhs_ast)
@@ -157,7 +162,7 @@ def transform_constraint_equation(line: str, constants: set, index: int):
     expr_str = match.group(1).strip()
     variable = match.group(2).strip()
 
-    expr = parse_expr(expr_str)
+    expr = parse_expr(expr_str, constants)
     varset = set()
     collect_variables(expr, varset, constants)
     lhs, rhs = split_by_variable(expr, variable)
@@ -201,13 +206,13 @@ def handle_time_equation(line: str, constant_names: set):
       var = match.group(1).strip()
       rhs_str = match.group(2).strip()
   
-      rhs_expr = parse_expr(rhs_str)
-  
+      rhs_expr = parse_expr(rhs_str, constant_names)
+      rhs_expr = simplify(rhs_expr)
       varset = set()
       collect_variables(rhs_expr, varset, constant_names)
       varset.add(var)
   
-      rhs_cpp = generate_cpp(discretize_ast(rhs_expr, constant_names))
+      rhs_cpp = generate_cpp(simplify(discretize_ast(rhs_expr, constant_names)))
   
       update_code = f"{var}1[index] = {var}[index] + tau*({rhs_cpp});"
       residual_code = f"""

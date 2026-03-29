@@ -1,25 +1,27 @@
 from ast_nodes import Const, Var, Add, Mul, Func, Derivative, TimeDerivative, AXES, Scheme
 # calculus
-def diff(expr, axis, scheme=Scheme.CENTRAL):
+def diff(expr, axis, scheme=Scheme.CENTRAL, constants=None):
     """
     Дифференцирует AST-выражение по правилам
     """
     if isinstance(expr, Var):
-        return Derivative(expr, axis, scheme)
+      if constants and expr.name in constants:
+          return Const(0)
+      return Derivative(expr, axis, scheme)
     
     if isinstance(expr, Derivative):
         return Derivative(expr, axis, scheme)
     
     if isinstance(expr, Add):
         return Add(
-            diff(expr.left, axis, scheme),
-            diff(expr.right, axis, scheme)
+            diff(expr.left, axis, scheme, constants),
+            diff(expr.right, axis, scheme,constants)
         )
     
     if isinstance(expr, Mul):
         return Add(
-            Mul(expr.left, diff(expr.right, axis, scheme)),
-            Mul(expr.right, diff(expr.left, axis, scheme))
+            Mul(expr.left, diff(expr.right, axis, scheme, constants)),
+            Mul(expr.right, diff(expr.left, axis, scheme, constants))
         )
 
     if isinstance(expr, Func):
@@ -46,13 +48,13 @@ def diff(expr, axis, scheme=Scheme.CENTRAL):
     raise NotImplementedError("Unsupported differentiation case")
 
 
-def laplace(expr):
+def laplace(expr, scheme=Scheme.CENTRAL, constants=None):
     """
     Обработка лапласиана
     """
     result = None
     for axis in AXES:
-        second = diff(diff(expr, axis), axis)
+        second = diff(diff(expr, axis, scheme, constants), axis, scheme, constants)
         result = second if result is None else Add(result, second)
     return result
 
@@ -125,14 +127,11 @@ def split_by_variable(expr, variable):
     if rhs is None: rhs = Const(0)
     return lhs, rhs
 
-
-
 # algebra
 def distributive_expand(expr: str):
     """
     Раскрывает A*(B+C) -> A*B + A*C на уровне AST
-    """
-    
+    """   
     if isinstance(expr, Add):
         return Add(
             distributive_expand(expr.left),
@@ -158,5 +157,4 @@ def distributive_expand(expr: str):
             )
 
         return Mul(left, right)
-
     return expr
