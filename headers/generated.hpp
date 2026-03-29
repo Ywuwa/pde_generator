@@ -11,7 +11,6 @@ void generated_time_eq(const uint offset_X,
                const double tau,
                const size_t dimSize);
 void generated_impl_eq(std::vector<double>& u,
-               std::vector<double>& v,
                std::vector<Eigen::Triplet<double>>& triplets0,
                Eigen::VectorXd& B0,
                const uint offset_X,

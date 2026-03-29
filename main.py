@@ -3,7 +3,6 @@ import re
 from codegen import generate_src_n_header
 
 def parse_input_file(filename):
-
     constants = []
     time_equations = []
     implicit_eq = []

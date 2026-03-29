@@ -1,26 +1,25 @@
-from ast_nodes import Const, Var, Add, Mul, Func, Derivative, TimeDerivative, AXES
+from ast_nodes import Const, Var, Add, Mul, Func, Derivative, TimeDerivative, AXES, Scheme
 # calculus
-def diff(expr, axis):
+def diff(expr, axis, scheme=Scheme.CENTRAL):
     """
     Дифференцирует AST-выражение по правилам
     """
-    if isinstance(expr, Const):
-        return Const(0)
-
     if isinstance(expr, Var):
-        return Derivative(expr, axis)
-
+        return Derivative(expr, axis, scheme)
+    
     if isinstance(expr, Derivative):
-        return Derivative(expr, axis)
-
+        return Derivative(expr, axis, scheme)
+    
     if isinstance(expr, Add):
-        return Add(diff(expr.left, axis),
-                   diff(expr.right, axis))
-
+        return Add(
+            diff(expr.left, axis, scheme),
+            diff(expr.right, axis, scheme)
+        )
+    
     if isinstance(expr, Mul):
         return Add(
-            Mul(expr.left, diff(expr.right, axis)),
-            Mul(expr.right, diff(expr.left, axis))
+            Mul(expr.left, diff(expr.right, axis, scheme)),
+            Mul(expr.right, diff(expr.left, axis, scheme))
         )
 
     if isinstance(expr, Func):
@@ -122,6 +121,8 @@ def split_by_variable(expr, variable):
 
     lhs = build_sum(left)
     rhs = build_sum(right)
+    # Правая часть может оказаться пустой, если это так, присваиваем ей 0
+    if rhs is None: rhs = Const(0)
     return lhs, rhs
 
 

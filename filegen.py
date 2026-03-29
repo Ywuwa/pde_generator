@@ -13,7 +13,7 @@ def generate_equations_cpp(signature: str, head_code: str, time_equations_code: 
 #include "../headers/generated.hpp"
 void generated_time_eq({signature})
 {{
-  {head_code}
+{head_code}
 
   for (size_t k = 1; k < dimSize; k++)      // Z-Axis
   {{
@@ -30,7 +30,7 @@ void generated_time_eq({signature})
 
 void generated_impl_eq({impl_signature})
 {{
-  {head_code}
+{head_code}
 
   for (size_t k = 1; k < dimSize; k++)      // Z-Axis
   {{
@@ -54,7 +54,7 @@ def generate_velocity_residual_cpp(signature: str, head_code: str, velocity_resi
 */
 double velocity_residual({signature})
 {{
-  {head_code}
+{head_code}
   double vectorResidual (0.0);
   //---------------------------- inner knots --------------------------------
   for (size_t k = 1; k < dimSize; k++)      // Z-Axis

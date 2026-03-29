@@ -21,7 +21,8 @@ double velocity_residual(const uint offset_X,
                const double tau,
                const size_t dimSize)
 {
-  
+    const double Q1 = 5;
+    const double Q2 = 6;
   double vectorResidual (0.0);
   //---------------------------- inner knots --------------------------------
   for (size_t k = 1; k < dimSize; k++)      // Z-Axis
@@ -283,7 +284,7 @@ void compute_cube(
 
     //! pressure compute
     //---------------------------- inner knots --------------------------------
-    generated_impl_eq(u0, v, triplets0, B0, offsetX, offsetY, offsetZ, hX, hY, hZ, tau, dimSize);
+    generated_impl_eq(u0, triplets0, B0, offsetX, offsetY, offsetZ, hX, hY, hZ, tau, dimSize);
     //-------------------------------------------------------------------------
 
     //---------------------------- border knots -------------------------------

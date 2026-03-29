@@ -1,6 +1,10 @@
 # ast_nodes.py
 AXES = ["X", "Y", "Z"]
-
+class Scheme:
+    CENTRAL = "C"
+    FORWARD = "F"
+    BACKWARD = "B"
+    
 class Expr:
     """
     Базовый класс всех узлов выражения.
@@ -59,11 +63,15 @@ class Func(Expr):
 
 class Derivative(Expr):
     """
-    Первая производная произвольного выражения
+    Производная с указанием схемы:
+    C - central
+    F - forward
+    B - backward
     """
-    def __init__(self, expr, axis):
+    def __init__(self, expr, axis, scheme=Scheme.CENTRAL):
         self.expr = expr
         self.axis = axis
+        self.scheme = scheme
         
 class TimeDerivative(Expr):
     """

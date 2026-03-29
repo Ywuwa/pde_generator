@@ -1,7 +1,7 @@
 # codegen.py
 import re
 from parser import parse_expr
-from discretizer import discretize, discretize_ast, generate_cpp
+from discretizer import discretize_ast, generate_cpp
 from symbolic import distributive_expand, split_by_variable
 from ast_nodes import Expr, Const, Add, Mul, IndexedVar
 from filegen import generate_equations_hpp, generate_equations_cpp, generate_velocity_residual_cpp, generate_compute_flow_cpp
@@ -136,7 +136,6 @@ def handle_constraint_equation(lhs_ast: Expr, rhs_ast: Expr,
     rhs_ast - правая часть
     var - переменная (например p)
     """
-
     # 1. Дискретизация
     lhs_ast = discretize_ast(lhs_ast, constants_names)
     rhs_ast = discretize_ast(rhs_ast, constants_names)
@@ -152,7 +151,6 @@ def handle_constraint_equation(lhs_ast: Expr, rhs_ast: Expr,
 def transform_constraint_equation(line: str, constants: set, index: int):
 
     match = re.match(r'(.+)=\s*0\s*,\s*([A-Za-z_]\w*)', line)
-
     if not match:
         raise ValueError("Invalid constraint equation")
 
@@ -197,9 +195,8 @@ def handle_time_equation(line: str, constant_names: set):
     Генерирует:
         u1[index] = u[index] + tau*( - RHS )
     """
+    # уравнение вида Dt(...) + RHS = 0
     match = re.match(r'Dt\(([^)]+)\)\s*\+\s*(.+)\s*=\s*0', line)
-    #if not match:
-        #raise ValueError("Неверный формат временного уравнения")
     if match:
       var = match.group(1).strip()
       rhs_str = match.group(2).strip()
@@ -210,7 +207,7 @@ def handle_time_equation(line: str, constant_names: set):
       collect_variables(rhs_expr, varset, constant_names)
       varset.add(var)
   
-      rhs_cpp = discretize(rhs_expr, constant_names)
+      rhs_cpp = generate_cpp(discretize_ast(rhs_expr, constant_names))
   
       update_code = f"{var}1[index] = {var}[index] + tau*({rhs_cpp});"
       residual_code = f"""
@@ -219,7 +216,7 @@ def handle_time_equation(line: str, constant_names: set):
       """
   
       return update_code, sorted(varset), residual_code
-    
+    # уравнение вида Dt(...) = 0
     match = re.match(r'Dt\(([^)]+)\)\s*=\s*0', line)
     if match:
       var = match.group(1).strip()  
@@ -230,8 +227,7 @@ def handle_time_equation(line: str, constant_names: set):
       residual_code = f"""
       resTerm = {var}1[index] - ( {var}[index] );
       vectorResidual += resTerm*resTerm;
-      """
-  
+      """ 
       return update_code, sorted(varset), residual_code
     
     raise ValueError("Invalid time equation format") 
@@ -245,6 +241,7 @@ def generate_src_n_header(constants: list, equations: list, implicit_eq: list):
     Собирает воедино cpp, hpp файлы
     """
     constant_names = {n for n, _ in constants}
+    print(constant_names)
     signature_args = []       # common functions' signature
     time_eq_input_args = []   # arguements of the explicit time equations
     res_input_args = []       # arguements of the velocity residual function
@@ -274,7 +271,7 @@ def generate_src_n_header(constants: list, equations: list, implicit_eq: list):
     impl_eq_code = []
     index = 0
     for eq in implicit_eq:
-      code, variables, extra_rhs_flag, var = transform_constraint_equation(eq, constants, index)
+      code, variables, extra_rhs_flag, var = transform_constraint_equation(eq, constant_names, index)
       for v in variables:
         if v == var and extra_rhs_flag:
           impl_signature_args.append(f"std::vector<double>& {v}")
@@ -318,7 +315,7 @@ def generate_src_n_header(constants: list, equations: list, implicit_eq: list):
     
 
     head_lines = [f"    const double {n} = {v};" for n, v in constants]
-    head_code = "\n    ".join(head_lines)
+    head_code = "\n".join(head_lines)
     time_equations_code = "\n    ".join(time_eq_code)
     impl_equations_code = "\n    ".join(impl_eq_code)
     velocity_residual_code = "\n    ".join(residual_code)
