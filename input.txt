@@ -1,3 +1,4 @@
 Q1 = 5
 Q2 = 6
-Dt(u) + DXB_YF(Q1*u) = 0, u
+Dt(u) + DX_Y(u) = 0
+Dt(u) + Q1*DXB_YF(u) + Q1 + 2*Q2 = 0, u

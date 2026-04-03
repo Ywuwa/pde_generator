@@ -5,11 +5,13 @@ This is a study pet-project, PDE-generator, which builds C++ code from a Navier-
 ## Python files
 
 + **main.py** - main file, reads input file, calls the parser, calls generator
-+ **codegen.py** - handles equations, collects constants, generates files
++ **codegen.py** - handles equations, collects constants, generates code blocks
 + **parser.py** - parse equations, creates custom AST
-+ **discretizer.py** - creates C++ code according to AST
-+ **symbolic.py** - describes difference rules
++ **filegen.py** - generates C++ files
++ **symbolic.py** - describes difference rules (diff, laplace, AST simplification)
 + **ast_nodes.py** - inherits Python AST-functionality
++ **stencil.py** - defines stencil structure, which contains coefficients and offset's codes
++ **stencil_builder.py** - creates stencil system from given AST
 
 ## C++ files
 
@@ -31,7 +33,7 @@ This is a study pet-project, PDE-generator, which builds C++ code from a Navier-
 1. Write constants first.
 2. If PDE has partial time derivative, write it first (for ex., Dt(u) + ...)
 3. If PDE has no partial time derivative, point out which variable is about to be computed (for ex., "... = 0, p" means we had to solve the system "A*p = b")
-4. Derivatives: Dt, DX, DY, DZ, DXY, DXZ, etc.
+4. Derivatives: Dt, DX, DY, DZ, DXY, DXZ, etc. DX or DXC - central Scheme, DXB - bacward, DXF - forward. They could be combined as DXB_YF or DXBYF.
 
 ## Simple Examples
 + Constants: `C = 1` -> `const double C = 1`. If there is no equations, the following error will be raised: `ValueError: No equation found`

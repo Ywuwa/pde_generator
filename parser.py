@@ -41,10 +41,8 @@ def build_ast(node, constants):
         return TimeDerivative(arg_expr)
     # --- Пространственные производные---
     if func_name.startswith("D"):
-        name = func_name[1:].replace("_", "")
-    
+        name = func_name[1:].replace("_", "") 
         ops = parse_derivative_chain(name)
-    
         result = arg_expr
         for axis, scheme in ops:
             result = diff(result, axis, scheme)
@@ -58,7 +56,6 @@ def build_ast(node, constants):
 
   raise NotImplementedError("Unsupported syntax")
     
-
 def parse_derivative_chain(name):
     """
     "XBDYF" -> [("X","B"), ("Y","F")]
@@ -81,3 +78,23 @@ def parse_derivative_chain(name):
             i += 1
         tokens.append((axis, scheme))
     return tokens
+  
+def collect_variables(expr, varset: set, constants: set):
+    """
+    Рекурсивно собирает переменные в подвыражениях в множество varset
+    """
+    from ast_nodes import Var, Add, Mul, Func, Derivative
+
+    if isinstance(expr, Var):
+        if expr.name not in constants:
+            varset.add(expr.name)
+
+    elif isinstance(expr, (Add, Mul)):
+        collect_variables(expr.left, varset, constants)
+        collect_variables(expr.right, varset, constants)
+
+    elif isinstance(expr, Func):
+        collect_variables(expr.arg, varset, constants)
+
+    elif isinstance(expr, Derivative):
+        collect_variables(expr.expr, varset, constants)

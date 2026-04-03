@@ -12,7 +12,11 @@
 <var>   - exact value at knot
 <var>1  - estimated solution at knot
 */
-double velocity_residual(const uint offset_X,
+double velocity_residual(std::vector<double>& u,
+               std::vector<double>& u1,
+               std::vector<double>& v,
+               std::vector<double>& v1,
+               const uint offset_X,
                const uint offset_Y,
                const uint offset_Z,
                const double h_X,
@@ -35,6 +39,9 @@ double velocity_residual(const uint offset_X,
         double resTerm (0.0); // residual term
         //! Insert precise values to the scheme, take the difference with the estimated values
         
+      resTerm = u1[index] - ( u[index] + tau*((((v[index + offset_Y] + v[index - offset_X]) + (-1 * (v[index + offset_Y - offset_X] + v[index]))) * 1/(h_Y*h_X))) );
+      vectorResidual += resTerm*resTerm;
+      
       }
     }
   }
@@ -85,7 +92,7 @@ void compute_cube(
 
     //! velocity compute
     //---------------------------- inner knots --------------------------------
-    generated_time_eq(offsetX, offsetY, offsetZ, hX, hY, hZ, tau, dimSize);
+    generated_time_eq(u, u1, v, v1, offsetX, offsetY, offsetZ, hX, hY, hZ, tau, dimSize);
     //-------------------------------------------------------------------------
 
     //---------------------------- border knots -------------------------------
@@ -284,7 +291,7 @@ void compute_cube(
 
     //! pressure compute
     //---------------------------- inner knots --------------------------------
-    generated_impl_eq(u0, triplets0, B0, offsetX, offsetY, offsetZ, hX, hY, hZ, tau, dimSize);
+    generated_impl_eq(offsetX, offsetY, offsetZ, hX, hY, hZ, tau, dimSize);
     //-------------------------------------------------------------------------
 
     //---------------------------- border knots -------------------------------
@@ -556,7 +563,7 @@ void compute_cube(
 
     // residual
     //-------------------------------------------------------------------------
-    const double velResidual = velocity_residual(offsetX, offsetY, offsetZ, hX, hY, hZ, tau, dimSize);
+    const double velResidual = velocity_residual(uExac, u, vExac, v, offsetX, offsetY, offsetZ, hX, hY, hZ, tau, dimSize);
     outputResidualFile << std::scientific << velResidual << std::endl;
     //-------------------------------------------------------------------------
 

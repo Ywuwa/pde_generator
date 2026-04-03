@@ -17,6 +17,8 @@ class Var(Expr):
     """
     def __init__(self, name):
         self.name = name
+    def __str__(self):
+      return self.name
 
 class IndexedVar(Expr):
     """
@@ -25,6 +27,8 @@ class IndexedVar(Expr):
     def __init__(self,name,index):
         self.name=name
         self.index=index
+    def __str__(self):
+      return f"{self.name}[{self.index}]"
 
 class Const(Expr):
     """
@@ -32,6 +36,8 @@ class Const(Expr):
     """
     def __init__(self, value):
         self.value = value
+    def __str__(self):
+      return str(self.value)
 
 
 class Add(Expr):
@@ -41,6 +47,8 @@ class Add(Expr):
     def __init__(self, left, right):
         self.left = left
         self.right = right
+    def __str__(self):
+      return f"({self.left} + {self.right})"
 
 
 class Mul(Expr):
@@ -50,6 +58,8 @@ class Mul(Expr):
     def __init__(self, left, right):
         self.left = left
         self.right = right
+    def __str__(self):
+      return f"({self.left} * {self.right})"
 
 
 class Func(Expr):
@@ -72,6 +82,8 @@ class Derivative(Expr):
         self.expr = expr
         self.axis = axis
         self.scheme = scheme
+    def __str__(self):
+      return f"({self.axis} * {self.scheme})"
         
 class TimeDerivative(Expr):
     """

@@ -1,4 +1,4 @@
-from ast_nodes import Const, Var, Add, Mul, Func, Derivative, TimeDerivative, AXES, Scheme
+from ast_nodes import Const, Var, Add, Mul, Func, Derivative, AXES, Scheme
 # calculus
 def diff(expr, axis, scheme=Scheme.CENTRAL, constants=None):
     """
@@ -15,7 +15,7 @@ def diff(expr, axis, scheme=Scheme.CENTRAL, constants=None):
     if isinstance(expr, Add):
         return Add(
             diff(expr.left, axis, scheme, constants),
-            diff(expr.right, axis, scheme,constants)
+            diff(expr.right, axis, scheme, constants)
         )
     
     if isinstance(expr, Mul):
@@ -58,103 +58,36 @@ def laplace(expr, scheme=Scheme.CENTRAL, constants=None):
         result = second if result is None else Add(result, second)
     return result
 
-
-# AST utilities
-def contains_var(expr, var):
-    """
-    Ищет вхождение переменной var
-    """
-    if isinstance(expr, Var):
-        return expr.name == var
+def simplify_ast(expr):
+    from ast_nodes import Const, Add, Mul
 
     if isinstance(expr, Add):
-        return contains_var(expr.left, var) or contains_var(expr.right, var)
+        l = simplify_ast(expr.left)
+        r = simplify_ast(expr.right)
+
+        # 0 + x
+        if isinstance(l, Const) and l.value == 0:
+            return r
+        if isinstance(r, Const) and r.value == 0:
+            return l
+
+        return Add(l, r)
 
     if isinstance(expr, Mul):
-        return contains_var(expr.left, var) or contains_var(expr.right, var)
+        l = simplify_ast(expr.left)
+        r = simplify_ast(expr.right)
 
-    if isinstance(expr, Func):
-        return contains_var(expr.arg, var)
+        # 0 * x
+        if (isinstance(l, Const) and l.value == 0) or \
+           (isinstance(r, Const) and r.value == 0):
+            return Const(0)
 
-    if isinstance(expr, Derivative):
-        return contains_var(expr.expr, var)
-    
-    if isinstance(expr, TimeDerivative):
-        return contains_var(expr.expr, var)
+        # 1 * x
+        if isinstance(l, Const) and l.value == 1:
+            return r
+        if isinstance(r, Const) and r.value == 1:
+            return l
 
-    return False
-  
-def flatten_add(expr):
-    """
-    Приводит дерево сложения в плоский список слагаемых
-    """
-    if isinstance(expr, Add):
-        return flatten_add(expr.left) + flatten_add(expr.right)
-    return [expr]
+        return Mul(l, r)
 
-def build_sum(terms):
-    """
-    Строит сумму
-    """
-    if not terms:
-        return None
-    expr = terms[0]
-    for t in terms[1:]:
-        expr = Add(expr, t)
-    return expr
-
-
-
-# equation transforms
-def split_by_variable(expr, variable):
-    """
-    Разносит слагаемые по разные стороны от знака равенства,
-    в зависимости от вхождения variable в слагаемое
-    """
-    terms = flatten_add(expr)
-    left = []
-    right = []
-
-    for t in terms:
-      if contains_var(t, variable):
-          left.append(t)
-      else:
-          right.append(t)
-
-    lhs = build_sum(left)
-    rhs = build_sum(right)
-    # Правая часть может оказаться пустой, если это так, присваиваем ей 0
-    if rhs is None: rhs = Const(0)
-    return lhs, rhs
-
-# algebra
-def distributive_expand(expr: str):
-    """
-    Раскрывает A*(B+C) -> A*B + A*C на уровне AST
-    """   
-    if isinstance(expr, Add):
-        return Add(
-            distributive_expand(expr.left),
-            distributive_expand(expr.right)
-        )
-
-    if isinstance(expr, Mul):
-        left = distributive_expand(expr.left)
-        right = distributive_expand(expr.right)
-
-        # A*(B+C)
-        if isinstance(right, Add):
-            return Add(
-                distributive_expand(Mul(left, right.left)),
-                distributive_expand(Mul(left, right.right))
-            )
-
-        # (A+B)*C
-        if isinstance(left, Add):
-            return Add(
-                distributive_expand(Mul(left.left, right)),
-                distributive_expand(Mul(left.right, right))
-            )
-
-        return Mul(left, right)
     return expr

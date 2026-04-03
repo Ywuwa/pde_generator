@@ -1,17 +1,17 @@
-def generate_equations_hpp(signature, impl_signature):
+def generate_equations_hpp(expl_signature, impl_signature):
   return f"""
 #include "settings.hpp"
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
-void generated_time_eq({signature});
+void generated_time_eq({expl_signature});
 void generated_impl_eq({impl_signature});
 """
 
-def generate_equations_cpp(signature: str, head_code: str, time_equations_code: str,
-                               impl_signature: str, impl_equations_code: str):
+def generate_equations_cpp(expl_signature: str, head_code: str, expl_eq_code: str,
+                               impl_signature: str, impl_eq_code: str):
   return f"""
 #include "../headers/generated.hpp"
-void generated_time_eq({signature})
+void generated_time_eq({expl_signature})
 {{
 {head_code}
 
@@ -22,7 +22,7 @@ void generated_time_eq({signature})
       for (size_t i = 1; i < dimSize; i++)  // X-Axis
       {{
       uint index (k*offset_Z + j*offset_Y + offset_X);
-      {time_equations_code}
+      {expl_eq_code}
       }}
     }}
   }}
@@ -39,7 +39,7 @@ void generated_impl_eq({impl_signature})
       for (size_t i = 1; i < dimSize; i++)  // X-Axis
       {{
       uint index (k*offset_Z + j*offset_Y + offset_X);
-      {impl_equations_code}
+      {impl_eq_code}
       }}
     }}
   }}
@@ -77,7 +77,7 @@ double velocity_residual({signature})
   
 
 def generate_compute_flow_cpp(
-    time_eq_input: str, impl_eq_input: str, residual_input: str, velocity_residual_cpp: str):
+    expl_eq_input: str, impl_eq_input: str, residual_input: str, velocity_residual_cpp: str):
   return f""" 
 #include "../headers/inout.hpp"
 #include "../headers/mesh_n_model.hpp"
@@ -131,7 +131,7 @@ void compute_cube(
 
     //! velocity compute
     //---------------------------- inner knots --------------------------------
-    generated_time_eq({time_eq_input});
+    generated_time_eq({expl_eq_input});
     //-------------------------------------------------------------------------
 
     //---------------------------- border knots -------------------------------
