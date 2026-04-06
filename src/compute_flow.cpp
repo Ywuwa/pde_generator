@@ -25,8 +25,8 @@ double velocity_residual(std::vector<double>& u,
                const double tau,
                const size_t dimSize)
 {
-    const double Q1 = 5;
-    const double Q2 = 6;
+const double Q1 = 5;
+const double Q2 = 6;
   double vectorResidual (0.0);
   //---------------------------- inner knots --------------------------------
   for (size_t k = 1; k < dimSize; k++)      // Z-Axis
@@ -39,7 +39,7 @@ double velocity_residual(std::vector<double>& u,
         double resTerm (0.0); // residual term
         //! Insert precise values to the scheme, take the difference with the estimated values
         
-      resTerm = u1[index] - ( u[index] + tau*((((v[index + offset_Y] + v[index - offset_X]) + (-1 * (v[index + offset_Y - offset_X] + v[index]))) * 1/(h_Y*h_X))) );
+      resTerm = u1[index] - ( u[index] + tau*( - (((1/(2*h_X) * v) * u[index + 1*offset_X]) + ((-1/(2*h_X) * v) * u[index + -1*offset_X]) + ((u * 1/(2*h_X)) * v[index + 1*offset_X]) + ((u * -1/(2*h_X)) * v[index + -1*offset_X]))) );
       vectorResidual += resTerm*resTerm;
       
       }
@@ -291,7 +291,7 @@ void compute_cube(
 
     //! pressure compute
     //---------------------------- inner knots --------------------------------
-    generated_impl_eq(offsetX, offsetY, offsetZ, hX, hY, hZ, tau, dimSize);
+    generated_impl_eq(u, triplets0, B0, u, v, triplets1, B1, offsetX, offsetY, offsetZ, hX, hY, hZ, tau, dimSize);
     //-------------------------------------------------------------------------
 
     //---------------------------- border knots -------------------------------

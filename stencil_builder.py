@@ -8,6 +8,7 @@ def to_stencil(expr, constants):
     Возвращает:
         { var_name: StencilExpr }
     """
+    #print(expr)
     # --- Числовая константа ---
     if isinstance(expr, Const):
         return {"__const__": make_const_stencil(expr)}
@@ -37,14 +38,35 @@ def to_stencil(expr, constants):
 
     # --- Умножение ---
     if isinstance(expr, Mul):
-        s1 = to_stencil(expr.left, constants)
-        s2 = to_stencil(expr.right, constants)
-
+        left, right = expr.left, expr.right
+    
+        # --- случай: Var * (производная / stencil) ---
+        if isinstance(left, Var):
+            stencil = to_stencil(right, constants)
+            return scale_stencil(stencil, left)   # КЛЮЧЕВОЕ
+    
+        if isinstance(right, Var):
+            stencil = to_stencil(left, constants)
+            return scale_stencil(stencil, right)  # КЛЮЧЕВОЕ
+    
+        # --- константы ---
+        if isinstance(left, Const):
+            stencil = to_stencil(right, constants)
+            return scale_stencil(stencil, left)
+    
+        if isinstance(right, Const):
+            stencil = to_stencil(left, constants)
+            return scale_stencil(stencil, right)
+    
+        # fallback
+        s1 = to_stencil(left, constants)
+        s2 = to_stencil(right, constants)
         return multiply_systems(s1, s2)
       
     # --- Производная ---
     if isinstance(expr, Derivative):
         inner = expr.expr
+        #print(inner)
     
         # 1. базовая переменная
         if isinstance(inner, Var):
@@ -112,6 +134,7 @@ def multiply_systems(s1, s2):
   for name_l, stencil_l in s1.items():
     for name_r, stencil_r in s2.items():
       # оба __const__
+      #print(name_r, name_l)
       if name_l == "__const__" and name_r == "__const__":
           # сохраняем символы + числа
           conv = StencilExpr()
@@ -142,7 +165,7 @@ def multiply_systems(s1, s2):
           continue
 
       # var * var (пока не поддерживается)
-      raise NotImplementedError("u*v пока не поддерживается")
+      raise NotImplementedError(f"{name_r}*{name_l} пока не поддерживается")
 
   return result
   
@@ -183,3 +206,19 @@ def shift(axis, val):
         return (0,val,0)
     if axis == "Z":
         return (0,0,val)
+      
+def scale_stencil(stencil_dict, coef):
+    result = {}
+    #print(stencil_dict.keys())
+    for var, stencil in stencil_dict.items():
+        # создаём копию, чтобы не портить исходный объект
+        new_stencil = stencil.copy()
+
+        # масштабируем коэффициенты внутри stencil
+        for shift, value in new_stencil.terms.items():
+            #print(coef,value)
+            new_stencil.terms[shift] = Mul(coef, value)
+
+        result[var] = new_stencil
+
+    return result

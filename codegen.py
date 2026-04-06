@@ -3,7 +3,10 @@ from parser import parse_expr, collect_variables
 from stencil_builder import to_stencil
 
 def generate_signature_n_input(
-    implicit_eq: list, explicit_eq: list, constants_list_pairs):
+    implicit_eq: list, explicit_eq: list, constants_list_pairs: list):
+  """
+  На основе имеющихся уравнений генерирует сигнатуры и входные значения функций
+  """
   index = 0
   varset = set()
   
@@ -76,7 +79,7 @@ def generate_signature_n_input(
 
 def build_constants(constants_list):
     # Заменяет список пар на список строковых значений
-    return {name: value for name, value in constants_list}
+    return {name for name, value in constants_list}
   
 def process_implicit(implicit_eq: str, constants_list_pairs: list):
     """
@@ -92,10 +95,11 @@ def process_implicit(implicit_eq: str, constants_list_pairs: list):
     for eq_str in implicit_eq:
       # --- парсинг строки ---
       expr_str, var = eq_str
-      expr = parse_expr(expr_str, constants_list_pairs)
+      expr = parse_expr(expr_str, constants)
       
       # --- строим stencil ---
       system = to_stencil(expr, constants)
+      print(system)
   
       # --- упрощение stencil var ---
       system[var].simplify()
@@ -107,13 +111,13 @@ def process_implicit(implicit_eq: str, constants_list_pairs: list):
       eqs.append(cppB)
       ind += 1
     
-    cppConst = generate_constants(constants)
+    cppConst = generate_constants(constants_list_pairs)
     impl_eq_code = "\n".join(eqs)
     return cppConst, impl_eq_code
 
 def generate_constants(constants):
     lines = []
-    for name, value in constants.items():
+    for name, value in constants:
         lines.append(f"const double {name} = {value};")
     return "\n".join(lines)  
 
@@ -144,7 +148,8 @@ def generate_full_rhs(system, var: str, ind: int):
     Полная генерация RHS
     """
     rhs = generate_rhs(system, var)
-    rhs = add_time_term(rhs, var)
+    if "1/tau" in system[var].terms.items():
+      rhs = add_time_term(rhs, var)
     return f"B{ind}[index] = {rhs};"
 
 def generate_rhs(system, var):
@@ -219,6 +224,7 @@ def process_explicit(explicit_eq: str, constants_list_pairs: list):
     """
     # --- превращаем список пар константа-значение в список констант ---
     constants = build_constants(constants_list_pairs)   
+    
     # --- проходим по всем уравнениям ---
     eqs = []
     vel_res_code = []
@@ -226,10 +232,11 @@ def process_explicit(explicit_eq: str, constants_list_pairs: list):
     for eq_str in explicit_eq:
       # --- парсинг строки ---
       var, expr_str = eq_str
-      expr = parse_expr(expr_str, constants_list_pairs)
+      expr = parse_expr(expr_str, constants)
 
       # --- строим stencil ---
       system = to_stencil(expr, constants)
+      print(system)
   
       # --- упрощение stencil var ---
       system[var].simplify()
@@ -245,7 +252,7 @@ def process_explicit(explicit_eq: str, constants_list_pairs: list):
       vel_res_code.append(residual_code)
       ind += 1
     
-    cppConst = generate_constants(constants)
+    cppConst = generate_constants(constants_list_pairs)
     expl_eq_code = "\n".join(eqs)
     velocity_residual_code = "\n".join(vel_res_code)
     return cppConst, expl_eq_code, velocity_residual_code

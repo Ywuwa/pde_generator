@@ -41,7 +41,7 @@ class StencilExpr:
 
     def __mul__(self, other):
         """
-        Свёртка stencil (ключевая операция!)
+        Свёртка stencil (ключевая операция)
         """
         result = StencilExpr()
         for (dx1,dy1,dz1), c1 in self.terms.items():

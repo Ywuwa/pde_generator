@@ -2,6 +2,28 @@
 
 This is a study pet-project, PDE-generator, which builds C++ code from a Navier-Stocks PDE, described inside a file. The aim of this project is to help simply transfer PDE to code and check its performance (residual) on ABC-flow solution. The domain is a simple cube.
 
+## Архитектура
+
+Compiler implements the following steps sequentially:
+
+1. **Parsing**
+   - Transform text (DSL) into Abstract Syntax Tree (AST)
+
+2. **AST (Abstract Syntax Tree)**
+   - Provide program structure as a tree of objects
+
+3. **Symbolic conversion**
+   - Optimization, expressions simplification, preparation to code generation
+
+4. **Stencil / Builder**
+   - Formation of computational patterns
+
+5. **Code generation**
+   - Transform AST to code (here it is C++)
+
+6. **Files generation**
+   - .cpp, .hpp files generation
+
 ## Python files
 
 + **main.py** - main file, reads input file, calls the parser, calls generator
@@ -31,7 +53,7 @@ This is a study pet-project, PDE-generator, which builds C++ code from a Navier-
 
 ## HOW_TO_WRITE_PDE
 1. Write constants first.
-2. If PDE has partial time derivative, write it first (for ex., Dt(u) + ...)
+2. If PDE has partial time derivative, write it first standalone (for ex., Dt(u) + ...)
 3. If PDE has no partial time derivative, point out which variable is about to be computed (for ex., "... = 0, p" means we had to solve the system "A*p = b")
 4. Derivatives: Dt, DX, DY, DZ, DXY, DXZ, etc. DX or DXC - central Scheme, DXB - bacward, DXF - forward. They could be combined as DXB_YF or DXBYF.
 

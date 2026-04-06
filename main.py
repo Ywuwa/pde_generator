@@ -44,11 +44,11 @@ if __name__ == "__main__":
     print(implicit_eq)
     
     cppConst, impl_eq_code = process_implicit(implicit_eq, constants)
-    print("GEN:", cppConst + '\n' + impl_eq_code)
+    #print("GEN:", cppConst + '\n' + impl_eq_code)
     print('\n')
     cppConst, expl_eq_code, velocity_residual_code = \
       process_explicit(explicit_eq, constants)
-    print("GEN:", cppConst + '\n' + expl_eq_code)
+    #print("GEN:", cppConst + '\n' + expl_eq_code)
     
     impl_signature, impl_eq_input, expl_signature, expl_eq_input, residual_input = \
       generate_signature_n_input(implicit_eq, explicit_eq, constants)

@@ -16,6 +16,8 @@ def build_ast(node, constants):
   Построение кастомного AST-дерева
   """
   if isinstance(node, ast.Name):
+      if node.id in constants:                     # NEW
+          return Const(node.id)                    # NEW (символьная константа)
       return Var(node.id)
 
   if isinstance(node, ast.Constant):
@@ -36,6 +38,7 @@ def build_ast(node, constants):
   if isinstance(node, ast.Call):
     func_name = node.func.id
     arg_expr = build_ast(node.args[0], constants)
+    #print(func_name)
 
     if func_name == "Dt":
         return TimeDerivative(arg_expr)
