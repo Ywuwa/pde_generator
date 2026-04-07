@@ -232,6 +232,7 @@ def process_explicit(explicit_eq: str, constants_list_pairs: list):
     for eq_str in explicit_eq:
       # --- парсинг строки ---
       var, expr_str = eq_str
+      print(expr_str)
       expr = parse_expr(expr_str, constants)
 
       # --- строим stencil ---

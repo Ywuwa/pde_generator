@@ -213,10 +213,9 @@ def scale_stencil(stencil_dict, coef):
     for var, stencil in stencil_dict.items():
         # создаём копию, чтобы не портить исходный объект
         new_stencil = stencil.copy()
-
         # масштабируем коэффициенты внутри stencil
         for shift, value in new_stencil.terms.items():
-            #print(coef,value)
+            print(coef, value)
             new_stencil.terms[shift] = Mul(coef, value)
 
         result[var] = new_stencil

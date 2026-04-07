@@ -23,7 +23,7 @@ const double Q2 = 6;
       for (size_t i = 1; i < dimSize; i++)  // X-Axis
       {
       uint index (k*offset_Z + j*offset_Y + offset_X);
-      u1[index] = u[index] + tau*( - (((1/(2*h_X) * v) * u[index + 1*offset_X]) + ((-1/(2*h_X) * v) * u[index + -1*offset_X]) + ((u * 1/(2*h_X)) * v[index + 1*offset_X]) + ((u * -1/(2*h_X)) * v[index + -1*offset_X])));
+      u1[index] = u[index] + tau*( - (((1/(2*h_X) * 1/(2*h_Y)) * u[index + 1*offset_X + 1*offset_Y]) + ((1/(2*h_X) * -1/(2*h_Y)) * u[index + 1*offset_X + -1*offset_Y]) + ((-1/(2*h_X) * 1/(2*h_Y)) * u[index + -1*offset_X + 1*offset_Y]) + ((-1/(2*h_X) * -1/(2*h_Y)) * u[index + -1*offset_X + -1*offset_Y]) + ((1/(2*h_Z) * v) * u[index + 1*offset_Z]) + ((-1/(2*h_Z) * v) * u[index + -1*offset_Z]) + ((u * 1/(2*h_Z)) * v[index + 1*offset_Z]) + ((u * -1/(2*h_Z)) * v[index + -1*offset_Z])));
       }
     }
   }
