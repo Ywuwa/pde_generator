@@ -43,7 +43,7 @@ def discretize_ast(expr, constants):
         h = f"h_{axis}"
     
         # ----------------------------------
-        # Вторая производная (оставляем central)
+        # Вторая производная
         # ----------------------------------
         if isinstance(expr.expr, Derivative):
             inner_der = expr.expr
@@ -294,11 +294,9 @@ def _shift(expr, index, constants):
 
     return expr
 
-
 # ==========================================
 # 2. GENERATE C++
 # ==========================================
-
 def generate_cpp(expr):
 
     if isinstance(expr, Const):

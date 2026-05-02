@@ -37,7 +37,7 @@ def parse_input_file(filename):
 
 if __name__ == "__main__":
 
-    constants, equations, implicit_eq = parse_input_file("input.txt")
+    constants, equations, implicit_eq = parse_input_file("fda4.txt")
     print(equations)
     print(implicit_eq)
     generated_cpp, generated_hpp, compute_flow_cpp_code = generate_src_n_header(constants, equations, implicit_eq)

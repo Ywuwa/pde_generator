@@ -1,3 +1,4 @@
-Q1 = 5
+Q1 = Re
 Q2 = 6
-Dt(u) + DXB_YF(Q1*u) = 0, u
+Dt(u) + DX(DX(u)) = 0
+Dt(u) + DXB_YF(v*u) + L(p) = 0, u

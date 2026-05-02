@@ -3,7 +3,7 @@ import re
 from parser import parse_expr
 from discretizer import discretize_ast, generate_cpp, simplify
 from symbolic import distributive_expand, split_by_variable
-from ast_nodes import Expr, Const, Add, Mul, IndexedVar
+from ast_nodes import Expr, Const, Add, Mul, Var, IndexedVar, Func, Derivative
 from filegen import generate_equations_hpp, generate_equations_cpp, generate_velocity_residual_cpp, generate_compute_flow_cpp
 
 from collections import defaultdict
@@ -169,15 +169,14 @@ def transform_constraint_equation(line: str, constants: set, index: int):
     code, extra_rhs_flag = handle_constraint_equation(lhs, rhs, variable, constants, index)
     return code, sorted(varset), extra_rhs_flag, variable
 
+#========================== 
+# --- Time equations --
+#========================== 
 
-
-#========================== time equations
 def collect_variables(expr, varset: set, constants: set):
     """
     Рекурсивно собирает переменные в подвыражениях в множество varset
     """
-    from ast_nodes import Var, Add, Mul, Func, Derivative
-
     if isinstance(expr, Var):
         if expr.name not in constants:
             varset.add(expr.name)
@@ -210,7 +209,6 @@ def handle_time_equation(line: str, constant_names: set):
       rhs_expr = simplify(rhs_expr)
       varset = set()
       collect_variables(rhs_expr, varset, constant_names)
-      varset.add(var)
   
       rhs_cpp = generate_cpp(simplify(discretize_ast(rhs_expr, constant_names)))
   
@@ -219,8 +217,8 @@ def handle_time_equation(line: str, constant_names: set):
       resTerm = {var}1[index] - ( {var}[index] + tau*({rhs_cpp}) );
       vectorResidual += resTerm*resTerm;
       """
-  
-      return update_code, sorted(varset), residual_code
+      return update_code, sorted(varset), residual_code, var
+    
     # уравнение вида Dt(...) = 0
     match = re.match(r'Dt\(([^)]+)\)\s*=\s*0', line)
     if match:
@@ -237,37 +235,39 @@ def handle_time_equation(line: str, constant_names: set):
     
     raise ValueError("Invalid time equation format") 
       
+#=============================== 
+# --- final code generation ---
+#=============================== 
 
-
-
-#=========================== final code generation
 def generate_src_n_header(constants: list, equations: list, implicit_eq: list):
     """
     Собирает воедино cpp, hpp файлы
     """
     constant_names = {n for n, _ in constants}
-    print(constant_names)
+    #print(constant_names)
     signature_args = []       # common functions' signature
     time_eq_input_args = []   # arguements of the explicit time equations
     res_input_args = []       # arguements of the velocity residual function
     
     time_eq_code = []         # explicit time equations code
     residual_code = []        # velocity residual code
+    total_variables = set()
     
     for equation in equations:
-      code, variables, vel_res_code = handle_time_equation(
+      code, variables, vel_res_code, var = handle_time_equation(
           equation,
           constant_names
       )
-      #print(code)
       for v in variables:
+        if v not in total_variables:
           signature_args.append(f"std::vector<double>& {v}")
-          signature_args.append(f"std::vector<double>& {v}1")
           time_eq_input_args.append(f"{v}")
-          time_eq_input_args.append(f"{v}1")
           res_input_args.append(f"{v}Exac")
-          res_input_args.append(f"{v}")
-      
+        total_variables.add(v)
+      signature_args.append(f"std::vector<double>& {var}1")
+      time_eq_input_args.append(f"{var}1")
+      res_input_args.append(f"{var}")
+        
       time_eq_code.append(code)
       residual_code.append(vel_res_code)
       
@@ -275,17 +275,20 @@ def generate_src_n_header(constants: list, equations: list, implicit_eq: list):
     impl_eq_input_args = []
     impl_eq_code = []
     index = 0
+    total_variables = set()
     for eq in implicit_eq:
       code, variables, extra_rhs_flag, var = transform_constraint_equation(eq, constant_names, index)
       for v in variables:
-        if v == var and extra_rhs_flag:
-          impl_signature_args.append(f"std::vector<double>& {v}")
-          impl_eq_input_args.append(f"{v}0")
-        elif v == var and extra_rhs_flag == False:
-          continue # skip this variable as it is hidden in stencil coefs
-        else:
-          impl_signature_args.append(f"std::vector<double>& {v}")
-          impl_eq_input_args.append(f"{v}")
+        if v not in total_variables:
+          if v == var and extra_rhs_flag:
+            impl_signature_args.append(f"std::vector<double>& {v}")
+            impl_eq_input_args.append(f"{v}0")
+          elif v == var and extra_rhs_flag == False:
+            continue # skip this variable as it is hidden in stencil coefs
+          else:
+            impl_signature_args.append(f"std::vector<double>& {v}")
+            impl_eq_input_args.append(f"{v}")
+        total_variables.add(v)
       impl_signature_args.append(f"std::vector<Eigen::Triplet<double>>& triplets{index}")
       impl_signature_args.append(f"Eigen::VectorXd& B{index}")
       impl_eq_input_args.append(f"triplets{index}")

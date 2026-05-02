@@ -5,6 +5,7 @@ pde_generator/
 ├── symbolic.py # diff(), правила дифференцирования 
 ├── discretizer.py # превращение Derivative → разностные схемы 
 ├── codegen.py # генерация C++ 
+├── filegen.py # генерация файлов
 └── main.py # сборка пайплайна
 
 INPUT DSL
