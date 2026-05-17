@@ -1,9 +1,18 @@
 __pycache__/
 *.txt
+<<<<<<< HEAD
 headers/
 src/
 v1/
 v2/
 v3/
 p/
+=======
+p/
+v1/
+v2/
+v3/
+src/
+headers/
+>>>>>>> backup_branch
 .vscode/

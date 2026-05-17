@@ -69,6 +69,7 @@ def diff(expr, axis, scheme=Scheme.CENTRAL, constants=None):
 
 
 def laplace(expr, scheme=Scheme.CENTRAL, constants=None):
+<<<<<<< HEAD
   """
   Обработка лапласиана
   """
@@ -77,6 +78,16 @@ def laplace(expr, scheme=Scheme.CENTRAL, constants=None):
       second = diff(diff(expr, axis, scheme, constants), axis, scheme, constants)
       result = second if result is None else Add(result, second)
   return result
+=======
+    """
+    Обработка лапласиана
+    """
+    result = None
+    for axis in AXES:
+        second = diff(expr, axis, "SECOND", constants)
+        result = second if result is None else Add(result, second)
+    return result
+>>>>>>> backup_branch
 
 def simplify_ast(expr):
   """

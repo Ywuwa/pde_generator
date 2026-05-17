@@ -76,6 +76,9 @@ def parse_derivative_chain(name):
         if i + 1 < len(name) and name[i+1] in ["F", "B", "C"]:
             scheme = name[i+1]
             i += 2
+        elif i + 1 < len(name) and name[i+1] == axis:
+          scheme = "SECOND"
+          i+=2
         else:
             scheme = "C"
             i += 1

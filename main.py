@@ -38,9 +38,15 @@ def parse_input_file(filename):
   return constants, explicit_eq, implicit_eq
     
 if __name__ == "__main__":
+<<<<<<< HEAD
     constants, explicit_eq, implicit_eq = parse_input_file("input.txt")
     print(constants)
     print(explicit_eq)
+=======
+
+    constants, equations, implicit_eq = parse_input_file("fda1.txt")
+    print(equations)
+>>>>>>> backup_branch
     print(implicit_eq)
     
     cppConst, impl_eq_code = process_implicit(implicit_eq, constants)
