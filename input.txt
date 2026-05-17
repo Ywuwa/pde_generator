@@ -1,4 +1,1 @@
-Q1 = Re
-Q2 = 6
-Dt(u) + DX(DX(u)) = 0
-Dt(u) + DXB_YF(v*u) + L(p) = 0, u
+DX(DX(p)) + DY(DY(u))= 0, p

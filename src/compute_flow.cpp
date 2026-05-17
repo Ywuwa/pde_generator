@@ -26,9 +26,10 @@ double velocity_residual(std::vector<double>& p,
                const double h_Y,
                const double h_Z,
                const double tau,
-               const size_t dimSize)
+               const size_t dimSize,
+               const model_data& params)
 {
-    const double Q1 = 1/Re;
+    const double Q1 = 1/params.Reyn;
   double vectorResidual (0.0);
   //---------------------------- inner knots --------------------------------
   for (size_t k = 1; k < dimSize; k++)      // Z-Axis
@@ -37,19 +38,19 @@ double velocity_residual(std::vector<double>& p,
     {
       for (size_t i = 1; i < dimSize; i++)  // X-Axis
       {
-        uint index (k*offset_Z + j*offset_Y + i);
+        uint index (k*offset_Z + j*offset_Y + i*offset_X);
         double resTerm (0.0); // residual term
         //! Insert precise values to the scheme, take the difference with the estimated values
         
-      resTerm = u1[index] - ( u[index] + tau*((((((u[index] * ((u[index + offset_X] + (-1 * u[index - offset_X])) * 1/(2*h_X))) + (v[index] * ((u[index + offset_Y] + (-1 * u[index - offset_Y])) * 1/(2*h_Y)))) + (w[index] * ((u[index + offset_Z] + (-1 * u[index - offset_Z])) * 1/(2*h_Z)))) + ((p[index + offset_X] + (-1 * p[index - offset_X])) * 1/(2*h_X))) + (-1 * (Q1 * (((((u[index + offset_X + offset_X] + (-1 * u[index + offset_X - offset_X])) + ((-1 * u[index - offset_X + offset_X]) + u[index - offset_X - offset_X])) * 1/(4*h_X*h_X)) + (((u[index + offset_Y + offset_Y] + (-1 * u[index + offset_Y - offset_Y])) + ((-1 * u[index - offset_Y + offset_Y]) + u[index - offset_Y - offset_Y])) * 1/(4*h_Y*h_Y))) + (((u[index + offset_Z + offset_Z] + (-1 * u[index + offset_Z - offset_Z])) + ((-1 * u[index - offset_Z + offset_Z]) + u[index - offset_Z - offset_Z])) * 1/(4*h_Z*h_Z))))))) );
+      resTerm = u1[index] - ( u[index] - tau*(((((((u[index] * ((u[index + offset_X] + (-1 * u[index - offset_X])) * 1/(2*h_X))) + (u[index] * ((u[index + offset_X] + (-1 * u[index - offset_X])) * 1/(2*h_X)))) + ((u[index] * ((v[index + offset_Y] + (-1 * v[index - offset_Y])) * 1/(2*h_Y))) + (v[index] * ((u[index + offset_Y] + (-1 * u[index - offset_Y])) * 1/(2*h_Y))))) + ((u[index] * ((w[index + offset_Z] + (-1 * w[index - offset_Z])) * 1/(2*h_Z))) + (w[index] * ((u[index + offset_Z] + (-1 * u[index - offset_Z])) * 1/(2*h_Z))))) + ((p[index + offset_X] + (-1 * p[index - offset_X])) * 1/(2*h_X))) + (-1 * (Q1 * (((((u[index + offset_X] + (-2 * u[index])) + u[index - offset_X]) * 1/(h_X*h_X)) + (((u[index + offset_Y] + (-2 * u[index])) + u[index - offset_Y]) * 1/(h_Y*h_Y))) + (((u[index + offset_Z] + (-2 * u[index])) + u[index - offset_Z]) * 1/(h_Z*h_Z))))))) );
       vectorResidual += resTerm*resTerm;
       
     
-      resTerm = v1[index] - ( v[index] + tau*((((((u[index] * ((v[index + offset_X] + (-1 * v[index - offset_X])) * 1/(2*h_X))) + (v[index] * ((v[index + offset_Y] + (-1 * v[index - offset_Y])) * 1/(2*h_Y)))) + (w[index] * ((v[index + offset_Z] + (-1 * v[index - offset_Z])) * 1/(2*h_Z)))) + ((p[index + offset_Y] + (-1 * p[index - offset_Y])) * 1/(2*h_Y))) + (-1 * (Q1 * (((((v[index + offset_X + offset_X] + (-1 * v[index + offset_X - offset_X])) + ((-1 * v[index - offset_X + offset_X]) + v[index - offset_X - offset_X])) * 1/(4*h_X*h_X)) + (((v[index + offset_Y + offset_Y] + (-1 * v[index + offset_Y - offset_Y])) + ((-1 * v[index - offset_Y + offset_Y]) + v[index - offset_Y - offset_Y])) * 1/(4*h_Y*h_Y))) + (((v[index + offset_Z + offset_Z] + (-1 * v[index + offset_Z - offset_Z])) + ((-1 * v[index - offset_Z + offset_Z]) + v[index - offset_Z - offset_Z])) * 1/(4*h_Z*h_Z))))))) );
+      resTerm = v1[index] - ( v[index] - tau*(((((((u[index] * ((v[index + offset_X] + (-1 * v[index - offset_X])) * 1/(2*h_X))) + (v[index] * ((u[index + offset_X] + (-1 * u[index - offset_X])) * 1/(2*h_X)))) + ((v[index] * ((v[index + offset_Y] + (-1 * v[index - offset_Y])) * 1/(2*h_Y))) + (v[index] * ((v[index + offset_Y] + (-1 * v[index - offset_Y])) * 1/(2*h_Y))))) + ((v[index] * ((w[index + offset_Z] + (-1 * w[index - offset_Z])) * 1/(2*h_Z))) + (w[index] * ((v[index + offset_Z] + (-1 * v[index - offset_Z])) * 1/(2*h_Z))))) + ((p[index + offset_Y] + (-1 * p[index - offset_Y])) * 1/(2*h_Y))) + (-1 * (Q1 * (((((v[index + offset_X] + (-2 * v[index])) + v[index - offset_X]) * 1/(h_X*h_X)) + (((v[index + offset_Y] + (-2 * v[index])) + v[index - offset_Y]) * 1/(h_Y*h_Y))) + (((v[index + offset_Z] + (-2 * v[index])) + v[index - offset_Z]) * 1/(h_Z*h_Z))))))) );
       vectorResidual += resTerm*resTerm;
       
     
-      resTerm = w1[index] - ( w[index] + tau*((((((u[index] * ((w[index + offset_X] + (-1 * w[index - offset_X])) * 1/(2*h_X))) + (v[index] * ((w[index + offset_Y] + (-1 * w[index - offset_Y])) * 1/(2*h_Y)))) + (w[index] * ((w[index + offset_Z] + (-1 * w[index - offset_Z])) * 1/(2*h_Z)))) + ((p[index + offset_Z] + (-1 * p[index - offset_Z])) * 1/(2*h_Z))) + (-1 * (Q1 * (((((w[index + offset_X + offset_X] + (-1 * w[index + offset_X - offset_X])) + ((-1 * w[index - offset_X + offset_X]) + w[index - offset_X - offset_X])) * 1/(4*h_X*h_X)) + (((w[index + offset_Y + offset_Y] + (-1 * w[index + offset_Y - offset_Y])) + ((-1 * w[index - offset_Y + offset_Y]) + w[index - offset_Y - offset_Y])) * 1/(4*h_Y*h_Y))) + (((w[index + offset_Z + offset_Z] + (-1 * w[index + offset_Z - offset_Z])) + ((-1 * w[index - offset_Z + offset_Z]) + w[index - offset_Z - offset_Z])) * 1/(4*h_Z*h_Z))))))) );
+      resTerm = w1[index] - ( w[index] - tau*(((((((u[index] * ((w[index + offset_X] + (-1 * w[index - offset_X])) * 1/(2*h_X))) + (w[index] * ((u[index + offset_X] + (-1 * u[index - offset_X])) * 1/(2*h_X)))) + ((v[index] * ((w[index + offset_Y] + (-1 * w[index - offset_Y])) * 1/(2*h_Y))) + (w[index] * ((v[index + offset_Y] + (-1 * v[index - offset_Y])) * 1/(2*h_Y))))) + ((w[index] * ((w[index + offset_Z] + (-1 * w[index - offset_Z])) * 1/(2*h_Z))) + (w[index] * ((w[index + offset_Z] + (-1 * w[index - offset_Z])) * 1/(2*h_Z))))) + ((p[index + offset_Z] + (-1 * p[index - offset_Z])) * 1/(2*h_Z))) + (-1 * (Q1 * (((((w[index + offset_X] + (-2 * w[index])) + w[index - offset_X]) * 1/(h_X*h_X)) + (((w[index + offset_Y] + (-2 * w[index])) + w[index - offset_Y]) * 1/(h_Y*h_Y))) + (((w[index + offset_Z] + (-2 * w[index])) + w[index - offset_Z]) * 1/(h_Z*h_Z))))))) );
       vectorResidual += resTerm*resTerm;
       
       }
@@ -64,7 +65,7 @@ double velocity_residual(std::vector<double>& p,
 //======================================= FLOW COMPUTATION ========================================
 void compute_cube(
   const model_data& params, 
-  std::vector<double>& u, std::vector<double>& v, std::vector<double>& w, std::vector<double>& p0)
+  std::vector<double>& u, std::vector<double>& v, std::vector<double>& w, std::vector<double>& p)
 {
   uint tick = 1; // number of time step
   const auto dimSize ( params.domainPartition );  // 1-dimension size
@@ -85,8 +86,8 @@ void compute_cube(
   std::vector<double> u1(vecSize, 0.0);
   std::vector<double> v1(vecSize, 0.0);
   std::vector<double> w1(vecSize, 0.0);
-  Eigen::VectorXd p(vecSize);
-  for (size_t i = 0; i < vecSize; i++) p[i] = p0[i];
+  Eigen::VectorXd p0(vecSize);
+  for (size_t i = 0; i < vecSize; i++) p0[i] = p[i];
 
   while (tick < params.timePartition + 1)
   {
@@ -102,7 +103,7 @@ void compute_cube(
 
     //! velocity compute
     //---------------------------- inner knots --------------------------------
-    generated_time_eq(p, u, v, w, u1, v1, w1, offsetX, offsetY, offsetZ, hX, hY, hZ, tau, dimSize);
+    generated_time_eq(p, u, v, w, u1, v1, w1, offsetX, offsetY, offsetZ, hX, hY, hZ, tau, dimSize, params);
     //-------------------------------------------------------------------------
 
     //---------------------------- border knots -------------------------------
@@ -301,7 +302,7 @@ void compute_cube(
 
     //! pressure compute
     //---------------------------- inner knots --------------------------------
-    generated_impl_eq(u, v, w, triplets0, B0, offsetX, offsetY, offsetZ, hX, hY, hZ, tau, dimSize);
+    generated_impl_eq(u, v, w, triplets0, B0, offsetX, offsetY, offsetZ, hX, hY, hZ, tau, dimSize, params);
     //-------------------------------------------------------------------------
 
     //---------------------------- border knots -------------------------------
@@ -558,7 +559,8 @@ void compute_cube(
       return;
     }
     Eigen::VectorXd pHat(vecSize);
-    pHat = solver.solveWithGuess(B0, p);
+    for (size_t i = 0; i < vecSize; ++i) p0[i] = p[i];
+    pHat = solver.solveWithGuess(B0, p0);
     if (solver.info() != Eigen::Success)
     {
       outputFile << "Failed to solve the system with Eigen, tick = " << tick << std::endl;
@@ -573,18 +575,17 @@ void compute_cube(
 
     // residual
     //-------------------------------------------------------------------------
-    const double velResidual = velocity_residual(pExac, uExac, vExac, wExac, u, v, w, offsetX, offsetY, offsetZ, hX, hY, hZ, tau, dimSize);
+    const double velResidual = velocity_residual(pExac, uExac, vExac, wExac, u, v, w, offsetX, offsetY, offsetZ, hX, hY, hZ, tau, dimSize, params);
     outputResidualFile << std::scientific << velResidual << std::endl;
     //-------------------------------------------------------------------------
 
     funcOutput(outputFuncFile, "/v1", std::to_string(tick), ".txt", u, params, false);
     funcOutput(outputFuncFile, "/v2", std::to_string(tick), ".txt", v, params, false);
     funcOutput(outputFuncFile, "/v3", std::to_string(tick), ".txt", w, params, false);
-    funcOutput(outputFuncFile, "/p", std::to_string(tick), ".txt", p0, params, false);
+    funcOutput(outputFuncFile, "/p", std::to_string(tick), ".txt", p, params, false);
     tick += 1;
     if ((tick % 100 == 0)) std::cout << "tick: " << tick << '\n';
   }
-  for (size_t i = 0; i < vecSize; ++i) p0[i] = p[i];
   std::cout << "final tick: " << tick << '\n';
 }
 //=================================================================================================

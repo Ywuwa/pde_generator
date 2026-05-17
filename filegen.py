@@ -14,35 +14,37 @@ def generate_equations_cpp(signature: str, head_code: str, time_equations_code: 
 void generated_time_eq({signature})
 {{
 {head_code}
-
+  //std::cout << "explicit eq gen start" << '\\n';
   for (size_t k = 1; k < dimSize; k++)      // Z-Axis
   {{
     for (size_t j = 1; j < dimSize; j++)    // Y-Axis
     {{
       for (size_t i = 1; i < dimSize; i++)  // X-Axis
       {{
-      uint index (k*offset_Z + j*offset_Y + offset_X);
+      uint index (k*offset_Z + j*offset_Y + i*offset_X);
       {time_equations_code}
       }}
     }}
   }}
+  //std::cout << "explicit eq gen end" << '\\n';
 }}
 
 void generated_impl_eq({impl_signature})
 {{
 {head_code}
-
-  for (size_t k = 1; k < dimSize; k++)      // Z-Axis
+  //std::cout << "implicit eq gen start" << '\\n';
+  for (size_t k = 2; k < dimSize-1; k++)      // Z-Axis
   {{
-    for (size_t j = 1; j < dimSize; j++)    // Y-Axis
+    for (size_t j = 2; j < dimSize-1; j++)    // Y-Axis
     {{
-      for (size_t i = 1; i < dimSize; i++)  // X-Axis
+      for (size_t i = 2; i < dimSize-1; i++)  // X-Axis
       {{
-      uint index (k*offset_Z + j*offset_Y + offset_X);
+      uint index (k*offset_Z + j*offset_Y + i*offset_X);
       {impl_equations_code}
       }}
     }}
   }}
+  //std::cout << "implicit eq gen end" << '\\n';
 }}
 """
 
@@ -63,7 +65,7 @@ double velocity_residual({signature})
     {{
       for (size_t i = 1; i < dimSize; i++)  // X-Axis
       {{
-        uint index (k*offset_Z + j*offset_Y + i);
+        uint index (k*offset_Z + j*offset_Y + i*offset_X);
         double resTerm (0.0); // residual term
         //! Insert precise values to the scheme, take the difference with the estimated values
         {velocity_residual_code}
@@ -93,7 +95,7 @@ def generate_compute_flow_cpp(
 //======================================= FLOW COMPUTATION ========================================
 void compute_cube(
   const model_data& params, 
-  std::vector<double>& u, std::vector<double>& v, std::vector<double>& w, std::vector<double>& p0)
+  std::vector<double>& u, std::vector<double>& v, std::vector<double>& w, std::vector<double>& p)
 {{
   uint tick = 1; // number of time step
   const auto dimSize ( params.domainPartition );  // 1-dimension size
@@ -114,8 +116,8 @@ void compute_cube(
   std::vector<double> u1(vecSize, 0.0);
   std::vector<double> v1(vecSize, 0.0);
   std::vector<double> w1(vecSize, 0.0);
-  Eigen::VectorXd p(vecSize);
-  for (size_t i = 0; i < vecSize; i++) p[i] = p0[i];
+  Eigen::VectorXd p0(vecSize);
+  for (size_t i = 0; i < vecSize; i++) p0[i] = p[i];
 
   while (tick < params.timePartition + 1)
   {{
@@ -587,7 +589,8 @@ void compute_cube(
       return;
     }}
     Eigen::VectorXd pHat(vecSize);
-    pHat = solver.solveWithGuess(B0, p);
+    for (size_t i = 0; i < vecSize; ++i) p0[i] = p[i];
+    pHat = solver.solveWithGuess(B0, p0);
     if (solver.info() != Eigen::Success)
     {{
       outputFile << "Failed to solve the system with Eigen, tick = " << tick << std::endl;
@@ -609,11 +612,10 @@ void compute_cube(
     funcOutput(outputFuncFile, "/v1", std::to_string(tick), ".txt", u, params, false);
     funcOutput(outputFuncFile, "/v2", std::to_string(tick), ".txt", v, params, false);
     funcOutput(outputFuncFile, "/v3", std::to_string(tick), ".txt", w, params, false);
-    funcOutput(outputFuncFile, "/p", std::to_string(tick), ".txt", p0, params, false);
+    funcOutput(outputFuncFile, "/p", std::to_string(tick), ".txt", p, params, false);
     tick += 1;
     if ((tick % 100 == 0)) std::cout << "tick: " << tick << '\\n';
   }}
-  for (size_t i = 0; i < vecSize; ++i) p0[i] = p[i];
   std::cout << "final tick: " << tick << '\\n';
 }}
 //=================================================================================================

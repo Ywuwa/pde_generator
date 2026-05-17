@@ -15,28 +15,37 @@ def decode_offset(index_expr: str):
     dx = dy = dz = 0
     index_expr = index_expr.replace(" ", "")
 
-    if "+offset_X" in index_expr:
-        dx = 1
-    if "-offset_X" in index_expr:
-        dx = -1
+    pattern = r'([+-])(\d*)\*?offset_X'
+    matchv = re.match(pattern, index_expr[5:])
+    if matchv:
+      sign = matchv.group(1)
+      num = matchv.group(2)
+      number = num if num else "1"
+      dx = int(sign + number)
 
-    if "+offset_Y" in index_expr:
-        dy = 1
-    if "-offset_Y" in index_expr:
-        dy = -1
+    pattern = r"([+-])(\d*)\*?offset_Y"
+    matchv = re.match(pattern, index_expr[5:])
+    if matchv:
+      sign = matchv.group(1)
+      num = matchv.group(2)
+      number = num if num else "1"
+      dy = int(sign + number)
 
-    if "+offset_Z" in index_expr:
-        dz = 1
-    if "-offset_Z" in index_expr:
-        dz = -1
+    pattern = r"([+-])(\d*)\*?offset_Z"
+    matchv = re.match(pattern, index_expr[5:])
+    if matchv:
+      sign = matchv.group(1)
+      num = matchv.group(2)
+      number = num if num else "1"
+      dz = int(sign + number)
 
     return dx, dy, dz
   
 def offset_to_code(dx, dy, dz):
     def sym(v):
-        if v == 1:
+        if v > 0:
             return "R"
-        if v == -1:
+        if v < 0:
             return "L"
         return "0"
 
@@ -100,6 +109,7 @@ def collect_stencil_coefficients(lhs_ast: Expr, var: str, constants: set):
             continue
         coef_ast, index_expr = res
         dx,dy,dz = decode_offset(index_expr)
+        print((dx,dy,dz))
         check_coef_str = generate_cpp(discretize_ast(coef_ast, constants))
         if (dx,dy,dz)==(0,0,0) and "1/tau" in check_coef_str:
           extra_rhs = check_coef_str + f"*{var}[{index_expr}]"
@@ -212,9 +222,9 @@ def handle_time_equation(line: str, constant_names: set):
   
       rhs_cpp = generate_cpp(simplify(discretize_ast(rhs_expr, constant_names)))
   
-      update_code = f"{var}1[index] = {var}[index] + tau*({rhs_cpp});"
+      update_code = f"{var}1[index] = {var}[index] - tau*({rhs_cpp});"
       residual_code = f"""
-      resTerm = {var}1[index] - ( {var}[index] + tau*({rhs_cpp}) );
+      resTerm = {var}1[index] - ( {var}[index] - tau*({rhs_cpp}) );
       vectorResidual += resTerm*resTerm;
       """
       return update_code, sorted(varset), residual_code, var
@@ -304,13 +314,14 @@ def generate_src_n_header(constants: list, equations: list, implicit_eq: list):
         "const double h_Y",
         "const double h_Z",
         "const double tau",
-        "const size_t dimSize"
+        "const size_t dimSize",
+        "const model_data& params"
     ]
     signature_args.extend(common_signature_extension)
     impl_signature_args.extend(common_signature_extension)
     
     common_input_extension = ["offsetX", "offsetY", "offsetZ", 
-                                "hX", "hY", "hZ", "tau", "dimSize"]
+                                "hX", "hY", "hZ", "tau", "dimSize", "params"]
     time_eq_input_args.extend(common_input_extension)
     impl_eq_input_args.extend(common_input_extension)
     res_input_args.extend(common_input_extension)

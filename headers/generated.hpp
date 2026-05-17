@@ -16,7 +16,8 @@ void generated_time_eq(std::vector<double>& p,
                const double h_Y,
                const double h_Z,
                const double tau,
-               const size_t dimSize);
+               const size_t dimSize,
+               const model_data& params);
 void generated_impl_eq(std::vector<double>& u,
                std::vector<double>& v,
                std::vector<double>& w,
@@ -29,4 +30,5 @@ void generated_impl_eq(std::vector<double>& u,
                const double h_Y,
                const double h_Z,
                const double tau,
-               const size_t dimSize);
+               const size_t dimSize,
+               const model_data& params);

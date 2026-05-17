@@ -54,7 +54,7 @@ def laplace(expr, scheme=Scheme.CENTRAL, constants=None):
     """
     result = None
     for axis in AXES:
-        second = diff(diff(expr, axis, scheme, constants), axis, scheme, constants)
+        second = diff(expr, axis, "SECOND", constants)
         result = second if result is None else Add(result, second)
     return result
 
