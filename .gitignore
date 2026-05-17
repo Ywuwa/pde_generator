@@ -1,2 +1,9 @@
 __pycache__/
 *.txt
+headers/
+src/
+v1/
+v2/
+v3/
+p/
+.vscode/
