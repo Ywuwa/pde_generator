@@ -61,19 +61,20 @@ def discretize_ast(expr, constants):
         
             o1 = f"offset_{axis1}"
             o2 = f"offset_{axis2}"
-                        
+            print(scheme1, scheme2, axis1, axis2)
+            
             # Central & Second 3-dot stencil
             if scheme1 == Scheme.CENTRAL and scheme2 == "SECOND":
-              p1 = _shift(expr.expr, f"index + {o2} + {o1}", constants)
-              c1 = _shift(expr.expr, "index + {o1}", constants)
-              m1 = _shift(expr.expr, f"index - {o2} + {o1}", constants)
+              p1 = _shift(inner, f"index + {o2} + {o1}", constants)
+              c1 = _shift(inner, f"index + {o1}", constants)
+              m1 = _shift(inner, f"index - {o2} + {o1}", constants)
           
               numerator1 = Add(
                   Add( p1, Mul(Const(-2), c1)), m1 )
               
-              p2 = _shift(expr.expr, f"index + {o2} - {o1}", constants)
-              c2 = _shift(expr.expr, "index - {o1}", constants)
-              m2 = _shift(expr.expr, f"index - {o2} - {o1}", constants)
+              p2 = _shift(inner, f"index + {o2} - {o1}", constants)
+              c2 = _shift(inner, f"index - {o1}", constants)
+              m2 = _shift(inner, f"index - {o2} - {o1}", constants)
               
               numerator2 = Add(
                   Add( p2, Mul(Const(-2), c2)), m2 )
@@ -289,7 +290,6 @@ def discretize_ast(expr, constants):
                 numerator,
                 Const(f"1/{h}")
             )
-          
         # Second 3-dot stencil
         if scheme == "SECOND":
           pp = _shift(expr.expr, f"index + {offset}", constants)
@@ -304,6 +304,7 @@ def discretize_ast(expr, constants):
               numerator,
               Const(f"1/({h}*{h})")
           )
+          
         raise ValueError(f"Unknown scheme: {scheme}")
       
     if isinstance(expr, TimeDerivative):

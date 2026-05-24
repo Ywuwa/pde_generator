@@ -7,7 +7,7 @@ This is a study pet-project, PDE-generator, which builds C++ code from a Navier-
 Compiler implements the following steps sequentially:
 
 1. **Parsing**
-   - Transform text (DSL) into Abstract Syntax Tree (AST)
+   - Transform text into Abstract Syntax Tree (AST)
 
 2. **AST (Abstract Syntax Tree)**
    - Provide program structure as a tree of objects
@@ -15,8 +15,8 @@ Compiler implements the following steps sequentially:
 3. **Symbolic conversion**
    - Optimization, expressions simplification, preparation to code generation
 
-4. **Stencil / Builder**
-   - Formation of computational patterns
+4. **Discretization**
+   - Translation AST expressions to difference schemes
 
 5. **Code generation**
    - Transform AST to code (here it is C++)
@@ -26,14 +26,13 @@ Compiler implements the following steps sequentially:
 
 ## Python files
 
-+ **main.py** - main file, reads input file, calls the parser, calls generator
++ **main.py** - main file, entry point: reads input file, calls the parser, calls generator
 + **codegen.py** - handles equations, collects constants, generates code blocks
-+ **parser.py** - parse equations, creates custom AST
-+ **filegen.py** - generates C++ files
++ **parser.py** - contains parse input expression and build AST components 
++ **filegen.py** - generates project files
 + **symbolic.py** - describes difference rules (diff, laplace, AST simplification)
-+ **ast_nodes.py** - inherits Python AST-functionality
-+ **stencil.py** - defines stencil structure, which contains coefficients and offset's codes
-+ **stencil_builder.py** - creates stencil system from given AST
++ **ast_nodes.py** - contains AST-nodes classes, partially inherits Python AST-functionality
++ **discretizer.py** # transforms AST expressions to difference schemesT
 
 ## C++ files
 
